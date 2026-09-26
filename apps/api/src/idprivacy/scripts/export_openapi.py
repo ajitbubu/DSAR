@@ -15,6 +15,8 @@ def main() -> None:
         oidc_issuer="https://idp.invalid",
         oidc_jwks_url="https://idp.invalid/jwks",
         local_master_key="ZGV2LW9ubHktbWFzdGVyLWtleS0zMi1ieXRlcyEhISE=",
+        bff_shared_secret="x" * 32,
+        rate_limiter="memory",
     )
     app = create_app(settings, key_resolver=lambda _t: None, readiness_probes={})
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "contracts/openapi.json")

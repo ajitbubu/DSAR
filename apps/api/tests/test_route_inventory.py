@@ -1,11 +1,15 @@
-"""Every route must declare Requires(<permission>) or Public() (ADR-0003)."""
+"""Every route must declare how it is authorised (ADR-0003).
+
+Markers: Requires(<permission>) for staff, InternalBff()/DataPrincipalSession() for
+public Data Principal routes (BFF-only), Public() for unauthenticated ops endpoints.
+"""
 
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
 from starlette.routing import BaseRoute
 
 from idprivacy.main import create_app
-from idprivacy.platform.auth.deps import Public, Requires
+from idprivacy.platform.auth.deps import DataPrincipalSession, InternalBff, Public, Requires
 from tests.conftest import make_settings
 
 
@@ -22,7 +26,7 @@ def _api_routes(routes: list[BaseRoute]) -> list[APIRoute]:
 
 def _markers(dep: Dependant) -> list[object]:
     found: list[object] = []
-    if isinstance(dep.call, Requires | Public):
+    if isinstance(dep.call, Requires | Public | InternalBff | DataPrincipalSession):
         found.append(dep.call)
     for sub in dep.dependencies:
         found.extend(_markers(sub))
@@ -34,7 +38,7 @@ def test_every_route_declares_authorization() -> None:
     routes = _api_routes(app.routes)
     assert routes, "no routes discovered"
     undeclared = [f"{sorted(r.methods)} {r.path}" for r in routes if not _markers(r.dependant)]
-    assert undeclared == [], f"routes without Requires()/Public(): {undeclared}"
+    assert undeclared == [], f"routes without an authorisation marker: {undeclared}"
 
 
 def test_public_routes_are_an_explicit_allowlist() -> None:
@@ -45,3 +49,24 @@ def test_public_routes_are_an_explicit_allowlist() -> None:
         if any(isinstance(m, Public) for m in _markers(r.dependant))
     }
     assert public == {"/healthz", "/readyz"}
+
+
+def test_every_public_dp_route_requires_the_bff_credential() -> None:
+    app = create_app(make_settings(), key_resolver=lambda _t: None, readiness_probes={})
+    public_dp = [r for r in _api_routes(app.routes) if r.path.startswith("/v1/public")]
+    assert public_dp
+    missing = [
+        r.path
+        for r in public_dp
+        if not any(isinstance(m, InternalBff) for m in _markers(r.dependant))
+    ]
+    assert missing == []
+
+
+def test_test_support_routes_only_exist_in_test_env() -> None:
+    def paths(env: str) -> set[str]:
+        app = create_app(make_settings(env=env), key_resolver=lambda _t: None, readiness_probes={})
+        return {r.path for r in _api_routes(app.routes)}
+
+    assert any(p.startswith("/v1/test-support") for p in paths("test"))
+    assert not any(p.startswith("/v1/test-support") for p in paths("local"))

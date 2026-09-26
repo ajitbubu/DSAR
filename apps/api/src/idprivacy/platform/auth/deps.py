@@ -2,9 +2,12 @@
 
 The tenant comes only from the authenticated principal, resolved through the
 ``resolve_staff_principal`` SECURITY DEFINER function. It is never read from
-client-supplied headers, paths or bodies.
+client-supplied headers, paths or bodies. Public Data Principal routes resolve the tenant
+from an opaque server-side handle (intake slug, challenge id, session token) instead.
 """
 
+import hmac
+import ipaddress
 from collections.abc import Iterator
 from typing import Annotated
 
@@ -12,6 +15,8 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from idprivacy.platform.auth import dp_session
+from idprivacy.platform.auth.dp_session import DataPrincipalPrincipal
 from idprivacy.platform.auth.oidc import InvalidTokenError, OidcVerifier
 from idprivacy.platform.auth.rbac import Permission, RoleCode, StaffPrincipal
 from idprivacy.platform.db import TenantContext, tenant_session
@@ -77,3 +82,48 @@ def get_tenant_db(
 ) -> Iterator[Session]:
     with tenant_session(request.app.state.app_engine, TenantContext(principal.tenant_id)) as s:
         yield s
+
+
+# ---------- Public (Data Principal) routes, reachable only through the web BFF --------
+
+
+class InternalBff:
+    """Route dependency: caller must be the web BFF (shared service credential).
+
+    Public intake is unauthenticated for the Data Principal, but the API itself is never
+    browser-facing. The BFF enforces CSRF and forwards the client IP for rate limiting.
+    """
+
+    def __call__(self, request: Request) -> None:
+        supplied = request.headers.get("x-internal-auth", "")
+        expected = request.app.state.settings.bff_shared_secret.get_secret_value()
+        if not supplied or not hmac.compare_digest(supplied.encode(), expected.encode()):
+            raise _UNAUTHENTICATED
+
+
+def client_ip(request: Request) -> str:
+    """Client IP as forwarded by the (authenticated) BFF; only used for rate limiting."""
+    raw = request.headers.get("x-client-ip", "")[:64]
+    try:
+        return str(ipaddress.ip_address(raw))
+    except ValueError:
+        return "unknown"
+
+
+class DataPrincipalSession:
+    """Route dependency: a live DP tracking session bound to exactly one request."""
+
+    def __call__(
+        self, request: Request, _bff: Annotated[None, Depends(InternalBff())]
+    ) -> DataPrincipalPrincipal:
+        token = request.headers.get("x-dp-session", "")
+        if not token or len(token) > 128:
+            raise _UNAUTHENTICATED
+        with request.app.state.app_engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT tenant_id, request_id, session_id FROM resolve_dp_session(:h)"),
+                {"h": dp_session.token_hash(token)},
+            ).first()
+        if row is None:
+            raise _UNAUTHENTICATED
+        return DataPrincipalPrincipal(row.tenant_id, row.request_id, row.session_id)

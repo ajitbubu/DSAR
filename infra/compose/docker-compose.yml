@@ -2,7 +2,10 @@
 name: idprivacy
 
 x-python-env: &python-env
-  IDP_ENV: local
+  # "test" (a dev-only environment, like "local") also mounts the mock-OTP inspection
+  # endpoint so the web app can show the code and Playwright can read it.
+  IDP_ENV: ${IDP_ENV:-test}
+  IDP_BFF_SHARED_SECRET: ${IDP_BFF_SHARED_SECRET:-dev-bff-shared-secret-change-me-0123456789}
   IDP_DATABASE_URL_APP: postgresql+psycopg://idp_app:${IDP_APP_PASSWORD:-dev-app}@postgres:5432/idprivacy
   IDP_DATABASE_URL_RELAY: postgresql+psycopg://idp_relay:${IDP_RELAY_PASSWORD:-dev-relay}@postgres:5432/idprivacy
   IDP_REDIS_URL: redis://redis:6379/0
@@ -126,6 +129,9 @@ services:
     build: { context: ../.., dockerfile: apps/web/Dockerfile }
     environment:
       API_BASE_URL: http://api:8000
+      APP_ORIGIN: http://localhost:3000
+      BFF_SHARED_SECRET: ${IDP_BFF_SHARED_SECRET:-dev-bff-shared-secret-change-me-0123456789}
+      DEV_SHOW_MOCK_OTP: "true"
     ports: ["127.0.0.1:3000:3000"]
     depends_on: { api: { condition: service_healthy } }
     healthcheck:

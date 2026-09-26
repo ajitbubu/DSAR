@@ -32,6 +32,7 @@ API_DIR = Path(__file__).resolve().parents[1]
 ISSUER = "https://idp.test.invalid/realms/idprivacy"
 AUDIENCE = "idprivacy-api"
 MASTER_KEY_B64 = "ZGV2LW9ubHktbWFzdGVyLWtleS0zMi1ieXRlcyEhISE="
+BFF_SECRET = "test-bff-shared-secret-0123456789abcdef"
 
 
 def _db_url(role: str, default_pw: str) -> str:
@@ -56,6 +57,8 @@ def make_settings(**overrides: Any) -> Settings:
         "oidc_audience": AUDIENCE,
         "oidc_jwks_url": "https://idp.test.invalid/jwks",
         "local_master_key": MASTER_KEY_B64,
+        "bff_shared_secret": BFF_SECRET,
+        "rate_limiter": "memory",
     }
     values.update(overrides)
     return Settings(**values)
@@ -109,7 +112,7 @@ def make_tenant(migrator_engine: Engine) -> Callable[[], uuid.UUID]:
     def _make() -> uuid.UUID:
         tid = uuid.uuid4()
         with Session(migrator_engine) as s, s.begin():
-            s.add(Tenant(id=tid, slug=f"t-{tid.hex[:12]}", name="Test tenant", status="ACTIVE"))
+            s.add(Tenant(id=tid, slug=tenant_slug(tid), name="Test tenant", status="ACTIVE"))
         return tid
 
     return _make
@@ -195,6 +198,15 @@ def client(migrated_db: None, rsa_key: rsa.RSAPrivateKey) -> Iterator[TestClient
     )
     with TestClient(app) as c:
         yield c
+
+
+def tenant_slug(tenant_id: uuid.UUID) -> str:
+    return f"t-{tenant_id.hex[:12]}"
+
+
+def bff(ip: str = "203.0.113.7", **extra: str) -> dict[str, str]:
+    """Headers the web BFF sends on public routes."""
+    return {"X-Internal-Auth": BFF_SECRET, "X-Client-IP": ip, **extra}
 
 
 def bearer(token: str) -> dict[str, str]:

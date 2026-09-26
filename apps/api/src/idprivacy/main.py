@@ -9,13 +9,15 @@ import structlog
 from fastapi import FastAPI
 from sqlalchemy import text
 
-from idprivacy.api.routes import audit, health, me
+from idprivacy.api.routes import audit, health, me, public, test_support
 from idprivacy.config import Settings, get_settings
 from idprivacy.domain.identity.otp import build_otp_provider
 from idprivacy.platform.auth.oidc import KeyResolver, OidcVerifier, jwks_key_resolver
 from idprivacy.platform.crypto import FieldCipher, build_key_provider
 from idprivacy.platform.db import make_engine
+from idprivacy.platform.http import BodySizeLimitMiddleware, install_problem_handlers
 from idprivacy.platform.logging import configure_logging
+from idprivacy.platform.ratelimit import MemoryRateLimiter, RateLimiter, RedisRateLimiter
 
 
 def _probes(settings: Settings, engine: Any) -> dict[str, Callable[[], None]]:
@@ -45,6 +47,12 @@ def _probes(settings: Settings, engine: Any) -> dict[str, Callable[[], None]]:
     return {"database": db, "redis": cache, "storage": storage}
 
 
+def _rate_limiter(settings: Settings) -> RateLimiter:
+    if settings.rate_limiter == "memory":
+        return MemoryRateLimiter()
+    return RedisRateLimiter(redis.Redis.from_url(settings.redis_url, socket_timeout=2))
+
+
 def create_app(
     settings: Settings | None = None,
     *,
@@ -71,13 +79,20 @@ def create_app(
         key_resolver=key_resolver or jwks_key_resolver(settings.oidc_jwks_url),
     )
     assert settings.local_master_key is not None  # guaranteed by Settings validation
-    app.state.cipher = FieldCipher(build_key_provider(settings.local_master_key.get_secret_value()))
+    app.state.keys = build_key_provider(settings.local_master_key.get_secret_value())
+    app.state.cipher = FieldCipher(app.state.keys)
     app.state.otp_provider = build_otp_provider(settings)
+    app.state.rate_limiter = _rate_limiter(settings)
     app.state.readiness_probes = (
         readiness_probes if readiness_probes is not None else _probes(settings, engine)
     )
 
+    app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_body_bytes)
+    install_problem_handlers(app)
     app.include_router(health.router)
     app.include_router(me.router)
     app.include_router(audit.router)
+    app.include_router(public.router)
+    if settings.env == "test" and settings.otp_provider == "mock":
+        app.include_router(test_support.router)
     return app

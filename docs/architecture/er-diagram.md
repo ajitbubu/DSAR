@@ -17,6 +17,7 @@ erDiagram
   DATA_PRINCIPAL ||--o{ PRIVACY_REQUEST : submits
   PRIVACY_REQUEST ||--|{ REQUEST_RIGHT : invokes
   PRIVACY_REQUEST ||--o{ IDENTITY_VERIFICATION : "verified by"
+  PRIVACY_REQUEST ||--o{ DP_SESSION : "tracked via"
   PRIVACY_REQUEST ||--o| JURISDICTION_DECISION : "governed by"
   JURISDICTION_DECISION }o--|| POLICY_PACK : "pins version"
   PRIVACY_REQUEST ||--o{ DISCOVERY_JOB : runs
@@ -83,15 +84,26 @@ erDiagram
     string right_code "ERASURE|ACCESS|CORRECTION|CONSENT_WITHDRAWAL|GRIEVANCE|NOMINATION"
     string enc_details
   }
+  DP_SESSION {
+    uuid id PK
+    uuid tenant_id FK
+    uuid request_id FK
+    string token_hash "UK; sha256 of opaque token"
+    timestamptz idle_expires_at
+    timestamptz absolute_expires_at
+    timestamptz revoked_at
+  }
   IDENTITY_VERIFICATION {
     uuid id PK
     uuid tenant_id FK
     uuid request_id FK
     string method "OTP_EMAIL|OTP_SMS"
     string provider "mock"
-    string challenge_hash "hash of OTP; never plaintext"
+    string challenge_hash "keyed HMAC of OTP; never plaintext"
     int attempts
     int max_attempts
+    int resend_count
+    timestamptz last_sent_at
     timestamptz expires_at
     timestamptz verified_at
     string status "PENDING|VERIFIED|FAILED|EXPIRED"

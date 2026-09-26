@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 TEST_DB_ENV := IDP_REQUIRE_DB=1
 
-.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web lint fmt typecheck contracts smoke
+.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e lint fmt typecheck contracts smoke
 
 help:  ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -9,8 +9,8 @@ help:  ## List targets
 up:  ## Build and start the full stack, wait until healthy
 	$(COMPOSE) up -d --build --wait
 
-up-deps:  ## Start only Postgres (enough for the Python test suites)
-	$(COMPOSE) up -d --wait postgres
+up-deps:  ## Start Postgres and Redis (enough for the Python test suites)
+	$(COMPOSE) up -d --wait postgres redis
 
 down:  ## Stop the stack (keeps volumes)
 	$(COMPOSE) down
@@ -34,6 +34,9 @@ test-worker:  ## Worker tests
 
 test-web:  ## Web unit tests
 	pnpm test:web
+
+test-e2e:  ## Playwright against the running stack (`make up` first)
+	pnpm test:e2e
 
 lint:  ## Lint and type-check everything
 	uv run ruff check .

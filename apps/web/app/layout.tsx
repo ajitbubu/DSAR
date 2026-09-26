@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
+import "./globals.css";
 
 export const metadata = {
   title: "ID-PRIVACY",
-  description: "DPAR/DSAR automation",
-  referrer: "no-referrer",
+  description: "Exercise your data protection rights",
+  referrer: "no-referrer" as const,
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

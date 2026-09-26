@@ -2,7 +2,7 @@
 
 Every milestone exits only when its acceptance criteria pass in CI against Docker Compose. Security tests are written in the same milestone as the feature, not deferred.
 
-## M0 — Foundations
+## M0 — Foundations ✅
 Scaffold the monorepo (ADR-0001) and Compose (postgres, redis, S3-compatible object storage, keycloak, mock-connectors, api, worker, web). Add the Alembic baseline with DB roles, RLS scaffolding and an append-only audit trigger. Add structured logging with a redaction processor, the KeyProvider (local dev impl) with AES-GCM envelope encryption and HMAC blind index, OIDC resource-server validation, the RBAC decorator, TenantContext, the outbox relay and CI.
 
 **Acceptance**
@@ -14,7 +14,7 @@ Scaffold the monorepo (ADR-0001) and Compose (postgres, redis, S3-compatible obj
 - Log redaction unit test: emails and phones in log calls come out masked.
 - Booting with the mock OTP provider when `ENV=production` fails.
 
-## M1 — Intake and identity verification
+## M1 — Intake and identity verification ✅
 Public erasure form, case ID issuance, mock OTP provider, confirm/resend, DP tracking session through the BFF, tracking screen.
 
 **Acceptance**

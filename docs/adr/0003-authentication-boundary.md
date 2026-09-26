@@ -19,6 +19,10 @@ There are two very different principals. Staff are long-lived org users with rol
 - There's no account. Submitting a request creates an `IdentityVerification` challenge. The OTP is sent through the `OtpProvider` interface (mock in v1) and stored as a hash only.
 - Successful confirmation creates a **server-side tracking session** (opaque random 256-bit token from `secrets`, stored hashed, bound to `tenant_id` + `request_id`, short TTL, sliding). The BFF sets it as an httpOnly cookie. It grants read access to that one case plus cancel. Nothing else.
 - The display ID is never an authenticator.
+- **Implemented in M1:** the API resolves the tenant for public routes from an opaque handle (intake slug, challenge id, or session-token hash) through narrow `SECURITY DEFINER` functions, then runs under normal RLS. The OTP is stored as a keyed HMAC (the key sits outside the DB). The challenge row is locked `FOR UPDATE` so concurrent guesses are counted exactly. The session token is stored as SHA-256, with a 30-minute sliding idle expiry and a 24-hour absolute expiry.
+
+### BFF → API service credential (public routes)
+Public Data Principal routes have no end-user bearer token, so the API requires a **BFF service credential** (`X-Internal-Auth`, a pre-shared secret compared in constant time). This keeps the API non-browser-facing and lets it trust the BFF-supplied `X-Client-IP` for rate limiting. The pre-shared secret is an MVP stand-in; production should use mTLS or workload identity (decision D-18).
 
 ### CSRF
 Cookie-authenticated state changes (staff and DP) go through the BFF, which enforces a double-submit CSRF token plus `Origin`/`Sec-Fetch-Site` checks. The API itself is bearer-only, so it isn't CSRF-exposed.

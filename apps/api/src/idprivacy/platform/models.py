@@ -14,6 +14,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
+    Integer,
     MetaData,
     String,
     Text,
@@ -142,3 +143,105 @@ class OutboxMessage(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = _created_at()
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ---------- M1: intake, identity verification, Data Principal sessions --------------
+
+
+class DataPrincipal(Base):
+    __tablename__ = "data_principal"
+    __table_args__ = (UniqueConstraint("tenant_id", "id", name="uq_data_principal_tenant_id_id"),)
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    enc_identifiers: Mapped[str] = mapped_column(Text, nullable=False)
+    bidx_email: Mapped[str | None] = mapped_column(String(64))
+    bidx_phone: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class PrivacyRequest(Base):
+    __tablename__ = "privacy_request"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "display_id", name="uq_privacy_request_display_id"),
+        UniqueConstraint("tenant_id", "id", name="uq_privacy_request_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "data_principal_id"],
+            ["data_principal.tenant_id", "data_principal.id"],
+            name="fk_privacy_request_data_principal",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    display_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    data_principal_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    channel: Mapped[str] = mapped_column(String(16), nullable=False, default="WEB")
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    enc_full_name: Mapped[str] = mapped_column(Text, nullable=False)
+    enc_submitted_identifiers: Mapped[str] = mapped_column(Text, nullable=False)
+    residency_claim: Mapped[str] = mapped_column(String(16), nullable=False)
+    submitted_at: Mapped[datetime] = _created_at()
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RequestRight(Base):
+    __tablename__ = "request_right"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "request_id"],
+            ["privacy_request.tenant_id", "privacy_request.id"],
+            name="fk_request_right_request",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    right_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    enc_details: Mapped[str | None] = mapped_column(Text)
+
+
+class IdentityVerification(Base):
+    __tablename__ = "identity_verification"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "request_id"],
+            ["privacy_request.tenant_id", "privacy_request.id"],
+            name="fk_identity_verification_request",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    method: Mapped[str] = mapped_column(String(16), nullable=False)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    challenge_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+    resend_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class DpSession(Base):
+    """Server-side Data Principal tracking session. Only the token's SHA-256 is stored."""
+
+    __tablename__ = "dp_session"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "request_id"],
+            ["privacy_request.tenant_id", "privacy_request.id"],
+            name="fk_dp_session_request",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    created_at: Mapped[datetime] = _created_at()
+    idle_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    absolute_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

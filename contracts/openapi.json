@@ -1,6 +1,29 @@
 {
   "components": {
     "schemas": {
+      "AdditionalIdentifier": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "CUSTOMER_ID",
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9-]+$",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "title": "AdditionalIdentifier",
+        "type": "object"
+      },
       "ChainVerificationResponse": {
         "properties": {
           "events_checked": {
@@ -29,6 +52,145 @@
           "first_broken_seq"
         ],
         "title": "ChainVerificationResponse",
+        "type": "object"
+      },
+      "Contact": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "enum": [
+              "EMAIL",
+              "SMS"
+            ],
+            "title": "Channel",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "value"
+        ],
+        "title": "Contact",
+        "type": "object"
+      },
+      "ErasureRequestAccepted": {
+        "properties": {
+          "challengeId": {
+            "title": "Challengeid",
+            "type": "string"
+          },
+          "destinationHint": {
+            "title": "Destinationhint",
+            "type": "string"
+          },
+          "displayId": {
+            "title": "Displayid",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "title": "Expiresat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "displayId",
+          "challengeId",
+          "expiresAt",
+          "destinationHint"
+        ],
+        "title": "ErasureRequestAccepted",
+        "type": "object"
+      },
+      "ErasureRequestCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "additionalIdentifiers": {
+            "items": {
+              "$ref": "#/components/schemas/AdditionalIdentifier"
+            },
+            "maxItems": 5,
+            "title": "Additionalidentifiers",
+            "type": "array"
+          },
+          "consentToProcess": {
+            "const": true,
+            "title": "Consenttoprocess",
+            "type": "boolean"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/Contact"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
+          "fullName": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Fullname",
+            "type": "string"
+          },
+          "intakeSlug": {
+            "pattern": "^[a-z0-9-]{3,40}$",
+            "title": "Intakeslug",
+            "type": "string"
+          },
+          "residencyClaim": {
+            "default": "UNKNOWN",
+            "enum": [
+              "IN",
+              "OTHER",
+              "UNKNOWN"
+            ],
+            "title": "Residencyclaim",
+            "type": "string"
+          },
+          "rights": {
+            "items": {
+              "$ref": "#/components/schemas/RightCode"
+            },
+            "maxItems": 1,
+            "minItems": 1,
+            "title": "Rights",
+            "type": "array"
+          }
+        },
+        "required": [
+          "intakeSlug",
+          "rights",
+          "fullName",
+          "contact",
+          "consentToProcess"
+        ],
+        "title": "ErasureRequestCreate",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
         "type": "object"
       },
       "MeResponse": {
@@ -65,6 +227,166 @@
           "permissions"
         ],
         "title": "MeResponse",
+        "type": "object"
+      },
+      "OtpConfirm": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "OtpConfirm",
+        "type": "object"
+      },
+      "OtpConfirmed": {
+        "properties": {
+          "sessionExpiresAt": {
+            "format": "date-time",
+            "title": "Sessionexpiresat",
+            "type": "string"
+          },
+          "sessionToken": {
+            "title": "Sessiontoken",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionToken",
+          "sessionExpiresAt"
+        ],
+        "title": "OtpConfirmed",
+        "type": "object"
+      },
+      "OtpResent": {
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "title": "Expiresat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expiresAt"
+        ],
+        "title": "OtpResent",
+        "type": "object"
+      },
+      "PublicCaseStatus": {
+        "properties": {
+          "canCancel": {
+            "title": "Cancancel",
+            "type": "boolean"
+          },
+          "completionResponse": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completionresponse"
+          },
+          "displayId": {
+            "title": "Displayid",
+            "type": "string"
+          },
+          "dueAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dueat"
+          },
+          "status": {
+            "enum": [
+              "Verifying",
+              "In progress",
+              "Completed",
+              "Closed",
+              "Cancelled",
+              "Verification failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "title": "Submittedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "displayId",
+          "status",
+          "submittedAt",
+          "canCancel"
+        ],
+        "title": "PublicCaseStatus",
+        "type": "object"
+      },
+      "RightCode": {
+        "enum": [
+          "ERASURE",
+          "ACCESS",
+          "CORRECTION",
+          "CONSENT_WITHDRAWAL",
+          "GRIEVANCE",
+          "NOMINATION"
+        ],
+        "title": "RightCode",
+        "type": "string"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
         "type": "object"
       }
     }
@@ -162,6 +484,185 @@
         "summary": "Me",
         "tags": [
           "identity"
+        ]
+      }
+    },
+    "/v1/public/case": {
+      "get": {
+        "operationId": "get_case_v1_public_case_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCaseStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Case",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/v1/public/case/cancel": {
+      "post": {
+        "operationId": "cancel_case_v1_public_case_cancel_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCaseStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cancel Case",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/v1/public/requests": {
+      "post": {
+        "operationId": "submit_request_v1_public_requests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ErasureRequestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErasureRequestAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Request",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/v1/public/verifications/{challenge_id}/confirm": {
+      "post": {
+        "operationId": "confirm_otp_v1_public_verifications__challenge_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "challenge_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Challenge Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpConfirmed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Otp",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/v1/public/verifications/{challenge_id}/resend": {
+      "post": {
+        "operationId": "resend_otp_v1_public_verifications__challenge_id__resend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "challenge_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Challenge Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpResent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resend Otp",
+        "tags": [
+          "public"
         ]
       }
     }

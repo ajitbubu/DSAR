@@ -24,11 +24,17 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 3s --health-retries 20
     env:
       IDP_REQUIRE_DB: "1"
       IDP_TEST_DATABASE_URL_MIGRATOR: postgresql+psycopg://idp_migrator:ci-migrator@localhost:5432/idprivacy_test
       IDP_TEST_DATABASE_URL_APP: postgresql+psycopg://idp_app:ci-app@localhost:5432/idprivacy_test
       IDP_TEST_DATABASE_URL_RELAY: postgresql+psycopg://idp_relay:ci-relay@localhost:5432/idprivacy_test
+      IDP_TEST_REDIS_URL: redis://localhost:6379/15
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -73,7 +79,28 @@ jobs:
     needs: [python, web]
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @idprivacy/web exec playwright install --with-deps chromium
       - run: make up
       - run: make smoke
+      - run: pnpm test:e2e
+        env:
+          CI: "true"
+      - name: No requester PII in service logs
+        run: |
+          if docker compose -f infra/compose/docker-compose.yml logs api web worker outbox-relay \
+               | grep -Ei "e2e-[0-9]+@example\.in|E2E Requester|CUST-2002"; then
+            echo "PII found in logs"; exit 1
+          fi
       - if: failure()
         run: docker compose -f infra/compose/docker-compose.yml logs --tail=200
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
