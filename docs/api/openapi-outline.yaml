@@ -1,0 +1,269 @@
+openapi: 3.1.0
+info:
+  title: ID-PRIVACY DPAR/DSAR Automation API
+  version: 0.1.0-outline
+  description: |
+    OUTLINE ONLY. This lists the endpoints, security schemes and core schemas the
+    full contract will contain. After scaffolding, the full contract lives in
+    contracts/openapi.yaml, and CI checks it against the FastAPI-generated spec.
+
+    Conventions:
+    - This API is called only by the web BFF (server-to-server). Browsers never call it directly.
+    - No PII or tokens in paths or query strings. Identifiers travel only in request bodies.
+    - Tenant is derived from the authenticated principal, never from client input
+      (except `intakeSlug` on public intake, which only selects an intake form).
+    - Every mutating staff endpoint accepts an `Idempotency-Key` header. It's required
+      on approvals and fulfilment dispatch.
+    - Not-found and not-authorised on object routes both return 404.
+    - Errors use RFC 9457 problem+json.
+    - Collection endpoints use cursor pagination (limit ≤ 100).
+
+servers:
+  - url: http://api:8000/v1
+
+security:
+  - staffBearer: []
+
+components:
+  securitySchemes:
+    staffBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OIDC access token from the staff IdP (decision D-1), forwarded by the BFF.
+    dpSession:
+      type: apiKey
+      in: header
+      name: X-DP-Session
+      description: Opaque DP tracking-session token. The BFF stores it in an httpOnly cookie and forwards it as this header.
+
+  parameters:
+    CaseId: { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9_-]+$' } }
+    Cursor: { name: cursor, in: query, schema: { type: string, maxLength: 256 } }
+    Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+
+  schemas:
+    RightCode: { type: string, enum: [ERASURE, ACCESS, CORRECTION, CONSENT_WITHDRAWAL, GRIEVANCE, NOMINATION] }
+    CaseStatus:
+      type: string
+      enum: [SUBMITTED, PENDING_VERIFICATION, VERIFICATION_FAILED, VERIFIED, JURISDICTION_DETERMINED,
+             DISCOVERY_IN_PROGRESS, DISCOVERY_COMPLETE, RETENTION_EVALUATED, UNDER_REVIEW,
+             PENDING_APPROVAL, APPROVED, REJECTED, FULFILMENT_IN_PROGRESS, VERIFICATION_IN_PROGRESS,
+             RECONCILIATION_REQUIRED, VERIFIED_COMPLETE, EVIDENCE_GENERATED, RESPONDED, CLOSED,
+             ON_HOLD, CANCELLED, PENDING_MANUAL_HANDLING]
+    RetentionDecisionCode: { type: string, enum: [DELETE, RETAIN, RESTRICT, ANONYMIZE, MANUAL_REVIEW] }
+    TaskStatus: { type: string, enum: [PENDING, DISPATCHED, SUCCEEDED, FAILED_RETRYABLE, FAILED_FINAL, SKIPPED, CANCELLED] }
+
+    ErasureRequestCreate:
+      type: object
+      additionalProperties: false
+      required: [intakeSlug, rights, contact, fullName, consentToProcess]
+      properties:
+        intakeSlug: { type: string, pattern: '^[a-z0-9-]{3,40}$' }
+        rights: { type: array, minItems: 1, maxItems: 1, items: { $ref: '#/components/schemas/RightCode' } }
+        fullName: { type: string, minLength: 1, maxLength: 200 }
+        contact:
+          type: object
+          additionalProperties: false
+          required: [channel, value]
+          properties:
+            channel: { type: string, enum: [EMAIL, SMS] }
+            value: { type: string, maxLength: 254, description: 'Email (RFC 5321 length) or E.164 phone' }
+        additionalIdentifiers:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required: [type, value]
+            properties:
+              type: { type: string, enum: [CUSTOMER_ID, ACCOUNT_NUMBER_MASKED] }
+              value: { type: string, maxLength: 64, pattern: '^[A-Za-z0-9-]+$' }
+        details: { type: string, maxLength: 2000 }
+        residencyClaim: { type: string, enum: [IN, OTHER, UNKNOWN] }
+        consentToProcess: { type: boolean, const: true }
+
+    ErasureRequestAccepted:
+      type: object
+      properties:
+        displayId: { type: string, example: DPR-2026-7K4Q9M }
+        challengeId: { type: string, format: uuid }
+        expiresAt: { type: string, format: date-time }
+
+    OtpConfirm:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: { type: string, pattern: '^[0-9]{6}$' }
+
+    PublicCaseStatus:
+      type: object
+      properties:
+        displayId: { type: string }
+        status: { type: string, description: 'DP-facing coarse status (Received, Verifying, In progress, Completed, Closed)' }
+        dueAt: { type: string, format: date-time }
+        completionResponse: { type: string, nullable: true }
+
+    CaseSummary: { type: object, description: 'id, displayId, status, rights, submittedAt, dueAt, slaState, assignee' }
+    CaseDetail: { type: object, description: 'CaseSummary + masked identifiers, jurisdiction decision, pack id@version, allowed next events for caller' }
+    DataMatch: { type: object, description: 'id, connectorId, recordType, sourceRecordRef, dataCategories, attributes (non-PII), currentDecision' }
+    RetentionDecision:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        dataMatchId: { type: string, format: uuid }
+        decision: { $ref: '#/components/schemas/RetentionDecisionCode' }
+        source: { type: string, enum: [ENGINE, ANALYST_OVERRIDE] }
+        ruleId: { type: string }
+        exceptionCode: { type: string, nullable: true }
+        exceptionReason: { type: string, nullable: true, maxLength: 2000 }
+    RetentionOverride:
+      type: object
+      additionalProperties: false
+      required: [decision, exceptionCode, exceptionReason]
+      properties:
+        decision: { $ref: '#/components/schemas/RetentionDecisionCode' }
+        exceptionCode: { type: string, maxLength: 64, description: 'From the policy-pack exception vocabulary' }
+        exceptionReason: { type: string, minLength: 10, maxLength: 2000 }
+    ApprovalCreate:
+      type: object
+      additionalProperties: false
+      required: [outcome, caseVersion, decisionSetSha256]
+      properties:
+        outcome: { type: string, enum: [APPROVED, REJECTED] }
+        caseVersion: { type: integer, minimum: 1 }
+        decisionSetSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        comment: { type: string, maxLength: 2000 }
+    FulfilmentTask: { type: object, description: 'id, dataMatchId, action, status, attemptCount, executions[]' }
+    VerificationResult: { type: object, description: 'taskId, expected, observed, outcome' }
+    EvidenceArtifact: { type: object, description: 'id, kind, sha256, sizeBytes, mediaType, createdAt' }
+    AuditEvent: { type: object, description: 'seq, occurredAt, actorType, actorRef, action, objectType, objectId, details (redacted), hash' }
+    Problem: { type: object, description: 'RFC 9457: type, title, status, detail, instance, traceId' }
+
+paths:
+  # ---------- Public (Data Principal) ----------
+  /public/requests:
+    post:
+      summary: Submit a rights request (erasure executable in v1)
+      security: []
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ErasureRequestCreate' } } } }
+      responses: { '202': { description: Accepted }, '413': {}, '422': {}, '429': {} }
+  /public/verifications/{challengeId}/confirm:
+    post:
+      summary: Confirm OTP → issues DP tracking session (returned to BFF only)
+      security: []
+      responses: { '200': {}, '409': { description: already used }, '410': { description: expired }, '422': {}, '429': { description: attempts exhausted } }
+  /public/verifications/{challengeId}/resend:
+    post: { summary: Resend OTP (rate limited), security: [], responses: { '202': {}, '429': {} } }
+  /public/case:
+    get:
+      summary: Tracking view for the case bound to the DP session (no ID in URL)
+      security: [ { dpSession: [] } ]
+      responses: { '200': { content: { application/json: { schema: { $ref: '#/components/schemas/PublicCaseStatus' } } } }, '401': {} }
+  /public/case/cancel:
+    post: { summary: DP withdraws request, security: [ { dpSession: [] } ], responses: { '200': {}, '409': {} } }
+
+  # ---------- Staff: identity ----------
+  /me:
+    get: { summary: Current staff principal, tenant, roles, responses: { '200': {} } }
+
+  # ---------- Cases ----------
+  /cases:
+    get:
+      summary: Ops dashboard list (filters by status, right, SLA state)
+      parameters: [ { $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' } ]
+      responses: { '200': {} }
+  /cases/{caseId}:
+    get: { summary: Case details, parameters: [ { $ref: '#/components/parameters/CaseId' } ], responses: { '200': {}, '404': {} } }
+  /cases/{caseId}/transitions:
+    post:
+      summary: Fire a workflow event (e.g. SUBMIT_FOR_APPROVAL, PLACE_ON_HOLD). Allowed events come from the policy pack.
+      parameters: [ { $ref: '#/components/parameters/CaseId' } ]
+      responses: { '200': {}, '403': {}, '404': {}, '409': { description: invalid transition or stale version } }
+
+  # ---------- Discovery ----------
+  /cases/{caseId}/discovery-jobs:
+    get: { summary: Discovery jobs per connector, responses: { '200': {} } }
+  /cases/{caseId}/matches:
+    get: { summary: Source-wise matches with current retention decision, responses: { '200': {} } }
+
+  # ---------- Retention ----------
+  /cases/{caseId}/matches/{matchId}/retention-decisions:
+    get: { summary: Decision history (append-only), responses: { '200': {} } }
+    post:
+      summary: Analyst override (creates a superseding decision; reason required)
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/RetentionOverride' } } } }
+      responses: { '201': {}, '403': {}, '409': {}, '422': {} }
+  /policy-packs/{code}/{version}/exception-codes:
+    get: { summary: Exception vocabulary for the pinned pack, responses: { '200': {} } }
+
+  # ---------- Legal holds ----------
+  /legal-holds:
+    get: { summary: List holds, responses: { '200': {} } }
+    post: { summary: Create hold (TENANT_ADMIN or PRIVACY_ANALYST), responses: { '201': {} } }
+  /legal-holds/{holdId}/release:
+    post: { summary: Release hold (audited), responses: { '200': {} } }
+
+  # ---------- Approvals ----------
+  /approvals/queue:
+    get: { summary: Cases awaiting approval visible to caller (APPROVER), responses: { '200': {} } }
+  /cases/{caseId}/approvals:
+    get: { summary: Approval history, responses: { '200': {} } }
+    post:
+      summary: Approve or reject the decision set (maker ≠ checker; bound to caseVersion + decisionSetSha256)
+      parameters: [ { $ref: '#/components/parameters/CaseId' }, { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ApprovalCreate' } } } }
+      responses: { '201': {}, '403': { description: self-approval or wrong role }, '409': { description: stale version / hash mismatch } }
+
+  # ---------- Fulfilment ----------
+  /cases/{caseId}/fulfilment-tasks:
+    get: { summary: Tasks with execution attempts, responses: { '200': {} } }
+  /cases/{caseId}/fulfilment-tasks/{taskId}/retry:
+    post:
+      summary: Manually retry a FAILED_FINAL task (same idempotency key; audited)
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      responses: { '202': {}, '409': {} }
+
+  # ---------- Verification ----------
+  /cases/{caseId}/verification-results:
+    get: { summary: Reconciliation of expected vs observed per task, responses: { '200': {} } }
+
+  # ---------- Evidence ----------
+  /cases/{caseId}/evidence:
+    get: { summary: List evidence artifacts, responses: { '200': {} } }
+    post:
+      summary: Upload supporting evidence (multipart; size/ext/MIME/magic validated)
+      requestBody: { content: { multipart/form-data: {} } }
+      responses: { '201': {}, '413': {}, '415': {} }
+  /cases/{caseId}/evidence/{artifactId}/content:
+    get:
+      summary: Stream artifact (attachment, nosniff; audited)
+      responses: { '200': { content: { application/octet-stream: {} } }, '404': {} }
+
+  # ---------- Communications ----------
+  /cases/{caseId}/communications:
+    get: { summary: Messages sent to DP (metadata + template), responses: { '200': {} } }
+
+  # ---------- Audit ----------
+  /cases/{caseId}/audit-events:
+    get: { summary: Case audit timeline, responses: { '200': {} } }
+  /audit/verify:
+    post: { summary: Recompute tenant hash chain (AUDITOR), responses: { '200': {} } }
+
+  # ---------- Admin ----------
+  /admin/users:
+    get: { summary: List users and roles (TENANT_ADMIN), responses: { '200': {} } }
+  /admin/users/{userId}/roles:
+    put: { summary: Set roles (audited; cannot grant self APPROVER + remove others to bypass checker), responses: { '200': {} } }
+  /admin/connectors:
+    get: { summary: Configured connectors, responses: { '200': {} } }
+  /admin/connectors/{connectorId}/test:
+    post: { summary: test_connection, responses: { '200': {} } }
+  /policy-packs:
+    get: { summary: Catalogue of packs and rights, responses: { '200': {} } }
+
+  # ---------- Ops ----------
+  /healthz: { get: { security: [], summary: Liveness, responses: { '200': {} } } }
+  /readyz:  { get: { security: [], summary: Readiness (DB, Redis, storage), responses: { '200': {} } } }

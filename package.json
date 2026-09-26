@@ -1,0 +1,11 @@
+{
+  "name": "idprivacy",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test:web": "pnpm --filter @idprivacy/web test",
+    "lint:web": "pnpm --filter @idprivacy/web lint",
+    "build:web": "pnpm --filter @idprivacy/web build"
+  }
+}

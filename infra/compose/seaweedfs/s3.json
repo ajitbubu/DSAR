@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "idprivacy-dev",
+      "credentials": [{ "accessKey": "idp-s3-dev", "secretKey": "dev-s3-secret" }],
+      "actions": ["Read", "Write", "List", "Tagging", "Admin"]
+    }
+  ]
+}

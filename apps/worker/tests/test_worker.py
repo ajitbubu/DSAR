@@ -1,0 +1,40 @@
+import uuid
+from typing import Any
+
+import pytest
+
+from idprivacy.platform.outbox import Envelope
+from idprivacy_worker.celery_app import celery_app
+from idprivacy_worker.relay import UnknownTopicError, celery_publisher
+
+
+def test_celery_is_configured_for_at_least_once_json_only() -> None:
+    conf = celery_app.conf
+    assert conf.task_acks_late is True
+    assert conf.task_reject_on_worker_lost is True
+    assert conf.worker_prefetch_multiplier == 1
+    assert conf.accept_content == ["json"] and conf.task_serializer == "json"
+
+
+class _FakeCelery:
+    def __init__(self) -> None:
+        self.sent: list[tuple[str, dict[str, Any], str]] = []
+
+    def send_task(self, name: str, kwargs: dict[str, Any], task_id: str) -> None:
+        self.sent.append((name, kwargs, task_id))
+
+
+def test_publisher_uses_outbox_id_as_task_id() -> None:
+    fake = _FakeCelery()
+    env = Envelope(uuid.uuid4(), uuid.uuid4(), "system.noop", {"request_id": str(uuid.uuid4())})
+    celery_publisher(fake)(env)
+    ((name, kwargs, task_id),) = fake.sent
+    assert name == "idprivacy_worker.tasks.noop"
+    assert task_id == str(env.id)
+    assert kwargs == {"tenant_id": str(env.tenant_id), **env.payload}
+
+
+def test_publisher_refuses_unknown_topics() -> None:
+    env = Envelope(uuid.uuid4(), uuid.uuid4(), "unknown.topic", {})
+    with pytest.raises(UnknownTopicError):
+        celery_publisher(_FakeCelery())(env)
