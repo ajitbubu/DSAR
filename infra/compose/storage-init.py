@@ -1,4 +1,4 @@
-"""Create the private evidence bucket in the local S3 stand-in. No public policy is ever attached (ADR-0007)."""
+"""Create the private evidence bucket in the local S3 stand-in (no public policy, ADR-0007)."""
 
 import os
 import time
@@ -14,7 +14,7 @@ s3 = boto3.client(
     region_name="us-east-1",
 )
 bucket = os.environ["IDP_S3_BUCKET"]
-for attempt in range(30):
+for _ in range(30):
     try:
         s3.head_bucket(Bucket=bucket)
         print(f"bucket {bucket} exists")
