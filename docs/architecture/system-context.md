@@ -123,6 +123,8 @@ The workflow definition (states, allowed transitions, required roles, guards) is
 
 ## 6. Production deployment architecture (documentation only — not built in v1)
 
+The detailed version is in [`production-deployment.md`](production-deployment.md). Summary:
+
 Target shape, pending decisions D-1 to D-6:
 
 - Stateless `web`, `api` and `worker` containers behind a WAF plus TLS-terminating load balancer. Horizontal scaling. Workers are split by queue (`discovery`, `fulfilment`, `evidence`) so destructive work is isolated.

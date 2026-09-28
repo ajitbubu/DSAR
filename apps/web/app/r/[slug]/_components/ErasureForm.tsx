@@ -176,7 +176,7 @@ export function ErasureForm({ slug }: { slug: string }) {
       </div>
 
       <div className="actions">
-        <button type="submit" disabled={submitting}>
+        <button type="submit" disabled={submitting || !csrf}>
           {submitting ? "Sending…" : "Continue"}
         </button>
       </div>

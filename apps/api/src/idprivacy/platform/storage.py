@@ -9,6 +9,7 @@ from collections.abc import Iterator
 from typing import Protocol
 
 import boto3
+from botocore.config import Config
 
 
 class BlobStore(Protocol):
@@ -27,12 +28,17 @@ class S3BlobStore:
         secret_key: str | None,
     ) -> None:
         self._bucket = bucket
+        # Bounded timeouts: a stalled store must fail fast (the task retries), not hold a
+        # worker slot for a minute and block every case queued behind it.
         self._s3 = boto3.client(
             "s3",
             endpoint_url=endpoint_url,
             region_name="us-east-1",
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
+            config=Config(
+                connect_timeout=5, read_timeout=30, retries={"max_attempts": 3, "mode": "standard"}
+            ),
         )
 
     def put(self, key: str, data: bytes, content_type: str) -> None:

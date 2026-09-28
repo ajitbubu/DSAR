@@ -1,0 +1,12 @@
+# Secret scanning (M9). Extends the default rules.
+[extend]
+useDefault = true
+
+# Triaged false positives. Each entry is a documented dev-only fixture, never a real secret.
+[allowlist]
+description = "Dev/test fixtures (see docs/threat-model/threat-model.md, M9 review)"
+# base64("dev-only-master-key-32-bytes!!!!"): the local key provider's dev master key.
+# Settings refuse the local key provider outside local/test.
+regexes = ['''ZGV2LW9ubHktbWFzdGVyLWtleS0zMi1ieXRlcyEhISE=''']
+# Untracked build and dependency output (gitignored; never committed).
+paths = ['''(^|/)\.next/''', '''(^|/)node_modules/''', '''(^|/)\.venv/''', '''(^|/)test-results/''']

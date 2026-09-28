@@ -96,10 +96,10 @@ Completion response to the DP (mock channel), the closure guard, audit timeline 
 - **Playwright E2E:** submit → OTP → discovery → review with one override → separate approver approves → fulfilment → verification → evidence download → DP sees completion → case `CLOSED`.
 - Log-scan over the E2E run: zero seeded identifiers appear in any container log.
 
-## M9 — Hardening
+## M9 — Hardening ✅
 Full negative security suite (threat model §5), CSP and security headers, rate-limit tuning, dependency and secret scanning in CI, and production deployment doc updated with the resolved decisions.
 
 **Acceptance**
 - Every threat-model test listed in §5 exists and passes.
 - `pip-audit` / `pnpm audit` / gitleaks run clean, or findings are triaged.
-- Threat model revisited, with residual risks signed off by the named owner.
+- Threat model revisited, with residual risks signed off by the named owner. (Revisited and documented in threat model §6. The sign-off itself is **pending** a named security owner and DPO.)

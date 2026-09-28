@@ -77,10 +77,35 @@ jobs:
       - run: pnpm test:web
       - run: pnpm build:web
 
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # gitleaks scans the full history
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Python dependency audit
+        run: |
+          uv export --all-packages --no-dev --no-emit-workspace --no-hashes -q -o req.txt
+          uvx pip-audit -r req.txt --disable-pip --no-deps --progress-spinner off
+      - name: npm dependency audit
+        run: pnpm audit --prod
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+
   stack-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [python, web]
+    needs: [python, web, security]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

@@ -14,3 +14,4 @@ test-results/
 *.tsbuildinfo
 next-env.d.ts
 playwright/.cache
+.requirements.audit.txt

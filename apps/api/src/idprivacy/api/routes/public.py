@@ -32,14 +32,7 @@ from idprivacy.platform.auth.deps import DataPrincipalSession, InternalBff, clie
 from idprivacy.platform.auth.dp_session import DataPrincipalPrincipal
 from idprivacy.platform.db import TenantContext, tenant_session
 from idprivacy.platform.models import IdentityVerification, PrivacyRequest
-from idprivacy.platform.ratelimit import (
-    CONFIRM_PER_IP,
-    RESEND_PER_IP,
-    SUBMIT_PER_CONTACT,
-    SUBMIT_PER_IP,
-    Limit,
-    RateLimitExceeded,
-)
+from idprivacy.platform.ratelimit import Limit, RateLimitExceeded
 
 router = APIRouter(prefix="/v1/public", tags=["public"])
 BffOnly = Depends(InternalBff())
@@ -77,11 +70,11 @@ def _resolve(request: Request, sql: str, param: str) -> UUID:
 def submit_request(
     request: Request, payload: ErasureRequestCreate, ip: ClientIp
 ) -> ErasureRequestAccepted:
-    _limit(request, SUBMIT_PER_IP, ip)
+    _limit(request, request.app.state.limits.submit_per_ip, ip)
     state = request.app.state
     tenant_id = _resolve(request, "SELECT resolve_intake_tenant(:p)", payload.intake_slug)
     bidx = intake.contact_bidx(state.keys, tenant_id, payload.contact)
-    _limit(request, SUBMIT_PER_CONTACT, f"{tenant_id}:{bidx}")
+    _limit(request, request.app.state.limits.submit_per_contact, f"{tenant_id}:{bidx}")
     with tenant_session(state.app_engine, TenantContext(tenant_id)) as db:
         result = intake.submit(
             db,
@@ -106,7 +99,7 @@ def submit_request(
 def confirm_otp(
     request: Request, challenge_id: UUID, body: OtpConfirm, ip: ClientIp
 ) -> OtpConfirmed:
-    _limit(request, CONFIRM_PER_IP, ip)
+    _limit(request, request.app.state.limits.confirm_per_ip, ip)
     state = request.app.state
     tenant_id = _resolve(
         request, "SELECT resolve_verification_tenant(CAST(:p AS uuid))", str(challenge_id)
@@ -139,7 +132,7 @@ def confirm_otp(
     dependencies=[BffOnly],
 )
 def resend_otp(request: Request, challenge_id: UUID, ip: ClientIp) -> OtpResent:
-    _limit(request, RESEND_PER_IP, ip)
+    _limit(request, request.app.state.limits.resend_per_ip, ip)
     state = request.app.state
     tenant_id = _resolve(
         request, "SELECT resolve_verification_tenant(CAST(:p AS uuid))", str(challenge_id)

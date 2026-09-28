@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     dp_session_idle_seconds: int = 1800
     dp_session_max_seconds: int = 86400
 
+    # Public-intake rate limits as "hits/seconds" (tuning is decision D-22).
+    rate_limit_submit_per_ip: str = "10/600"
+    rate_limit_submit_per_contact: str = "3/3600"
+    rate_limit_confirm_per_ip: str = "30/600"
+    rate_limit_resend_per_ip: str = "10/600"
+
     # Fulfilment (M6): attempts per destructive task before it fails permanently.
     fulfilment_max_attempts: int = 5
 
@@ -82,6 +88,20 @@ class Settings(BaseSettings):
             errors.append("in-memory rate limiter is only permitted in local/test")
         if self.key_provider == "local" and self.local_master_key is None:
             errors.append("local_master_key is required for the local key provider")
+        for name in (
+            "rate_limit_submit_per_ip",
+            "rate_limit_submit_per_contact",
+            "rate_limit_confirm_per_ip",
+            "rate_limit_resend_per_ip",
+        ):
+            hits, _, window = getattr(self, name).partition("/")
+            if not (
+                hits.isdigit()
+                and window.isdigit()
+                and 1 <= int(hits) <= 10_000
+                and 1 <= int(window) <= 86_400
+            ):
+                errors.append(f"{name} must look like '10/600' (hits/seconds)")
         if errors:
             raise ValueError("; ".join(errors))
         return self

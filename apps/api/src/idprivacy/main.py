@@ -26,9 +26,18 @@ from idprivacy.config import Settings, get_settings
 from idprivacy.domain.evidence.uploads import MAX_UPLOAD_BYTES
 from idprivacy.domain.identity.otp import build_otp_provider
 from idprivacy.platform.auth.oidc import KeyResolver, OidcVerifier, jwks_key_resolver
-from idprivacy.platform.http import BodySizeLimitMiddleware, install_problem_handlers
+from idprivacy.platform.http import (
+    BodySizeLimitMiddleware,
+    SecurityHeadersMiddleware,
+    install_problem_handlers,
+)
 from idprivacy.platform.logging import configure_logging
-from idprivacy.platform.ratelimit import MemoryRateLimiter, RateLimiter, RedisRateLimiter
+from idprivacy.platform.ratelimit import (
+    MemoryRateLimiter,
+    RateLimiter,
+    RedisRateLimiter,
+    public_limits,
+)
 from idprivacy.platform.storage import BlobStore
 from idprivacy.runtime import build_services
 
@@ -101,10 +110,12 @@ def create_app(
     app.state.cipher = svc.cipher
     app.state.otp_provider = build_otp_provider(settings)
     app.state.rate_limiter = _rate_limiter(settings)
+    app.state.limits = public_limits(settings)
     app.state.readiness_probes = (
         readiness_probes if readiness_probes is not None else _probes(settings, engine)
     )
 
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         BodySizeLimitMiddleware,
         max_bytes=settings.max_body_bytes,

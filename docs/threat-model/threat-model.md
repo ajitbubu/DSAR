@@ -1,6 +1,6 @@
 # Threat Model — ID-PRIVACY DPAR/DSAR Automation (v1 erasure slice)
 
-Method: STRIDE per trust boundary, plus privacy-specific (LINDDUN-lite) concerns. Status: **draft**. Revisit at every milestone exit.
+Method: STRIDE per trust boundary, plus privacy-specific (LINDDUN-lite) concerns. Status: **reviewed at M9 (2026-09-28); sign-off pending (§6)**. Revisit on every material change.
 
 ## 1. Assets
 
@@ -61,10 +61,51 @@ Method: STRIDE per trust boundary, plus privacy-specific (LINDDUN-lite) concerns
 - The evidence hash chain is tamper-evident, not tamper-proof, until external anchoring or WORM storage is decided (D-4).
 - Mock connectors don't exercise real authentication or network failure modes beyond simulated faults.
 
-## 5. Security test suite (required before M9 exit)
+## 5. Security test suite
 
-- `tests/security/test_authz_matrix.py`: every route × {anonymous, each role, other tenant}.
-- `test_idor.py`, `test_cross_tenant_rls.py`, `test_csrf.py`, `test_jwt_validation.py`
-- `test_otp_bruteforce_replay.py`, `test_approval_maker_checker.py`, `test_idempotent_dispatch.py`
-- `test_input_limits.py` (malformed, oversized, extra fields), `test_upload_validation.py`
-- `test_audit_append_only.py`, `test_log_redaction.py`
+Every threat in §3 maps to automated tests. `apps/api/tests/security/test_threat_coverage.py` holds the mapping and fails if a referenced test disappears or a threat gains no coverage. T-21 is a process control (D-7).
+
+| Area | Where it's tested |
+|---|---|
+| Authorisation matrix, generated from every route (anonymous 401 / no-role 403 / other-tenant 404) | `apps/api/tests/security/test_authz_matrix.py` |
+| IDOR, cross-tenant, RLS | `test_authz_matrix.py`, `test_rls.py`, `test_discovery.py::test_case_apis_block_other_tenants_and_admins` |
+| CSRF | `apps/web/lib/server/csrf.test.ts`, `apps/web/app/api/public/requests/route.test.ts`, Playwright specs |
+| JWT validation | `test_jwt_validation.py` |
+| OTP brute force and replay | `test_otp_verification.py` |
+| Maker-checker | `test_approvals.py` |
+| Idempotent dispatch | `test_fulfilment.py`, `packages/connector-sdk/tests/test_conformance_kit.py` |
+| Input limits and mass assignment | `test_public_intake.py`, `test_retention.py::test_override_validation` |
+| Upload validation | `test_verification_evidence.py` |
+| Append-only audit | `test_audit.py` |
+| Log redaction | `test_logging_redaction.py`, `make logscan` (CI gate over all service logs) |
+| SQL injection, credential references, security headers, rate-limit config | `security/test_injection_and_secrets.py` |
+| Dependency and secret scanning | `make security` (pip-audit, pnpm audit, gitleaks), CI job `security` |
+
+## 6. M9 review (2026-09-28)
+
+**Findings fixed while building**
+- Unicode digits accepted as phone numbers (M2)
+- log redaction over-masking pack references (M2)
+- `Content-Type` missing on connector calls (M3)
+- open redirect via `/ops/../` after normalisation (M3)
+- a concurrent evidence-capture race (M6)
+- an alphabetical conformance-check order destroying fixtures (M3)
+
+**Scans (M9)**
+- `pip-audit` and `pnpm audit`: no known vulnerabilities.
+- `gitleaks`: history clean after triage. The only findings were the documented dev master key, allowlisted narrowly by exact value in `.gitleaks.toml`.
+
+**Residual risks carried forward**
+
+| Risk | Why it remains | Owner decision |
+|---|---|---|
+| OTP proves control of an identifier, not identity | Acceptable for erasure of data linked to that identifier; stronger assurance is a pack option | D-14 |
+| Audit chain is tamper-evident, not tamper-proof, against a DB superuser | External anchoring / WORM not yet chosen | D-4, D-24 |
+| BFF→API trust is a shared secret | mTLS/workload identity is a deployment choice | D-18 |
+| Local key provider and env secrets | Dev stand-ins, refused outside local/test | D-3, D-5 |
+| Per-IP rate limits and shared NAT | Needs production traffic data | D-22 |
+| No malware scanning of uploads | Scanner not chosen; uploads are staff-only and stored inert | D-10 |
+| DPDP pack content not legally reviewed | Engineering draft; every destructive action still needs review + separate approval | D-9, D-20 |
+| Mock connectors don't exercise real auth or network failure modes | Real connectors must pass the conformance kit | D-11 |
+
+**Sign-off:** *pending*. Residual-risk acceptance needs a named security owner and a DPO. This document doesn't name one on their behalf.

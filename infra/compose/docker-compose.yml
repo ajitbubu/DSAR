@@ -106,7 +106,7 @@ services:
   worker:
     build: { context: ../.., dockerfile: apps/api/Dockerfile, target: worker }
     environment: *python-env
-    command: ["celery", "-A", "idprivacy_worker.celery_app", "worker", "--loglevel=INFO", "--concurrency=2"]
+    command: ["celery", "-A", "idprivacy_worker.celery_app", "worker", "--loglevel=INFO", "--concurrency=4"]
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }

@@ -67,8 +67,8 @@ export function OtpForm({ slug, destinationHint }: Props) {
                aria-invalid={error ? true : undefined} />
       </div>
       <div className="actions">
-        <button type="submit" disabled={busy || locked}>{busy ? "Checking…" : "Verify"}</button>
-        <button type="button" className="secondary" onClick={resend} disabled={locked}>
+        <button type="submit" disabled={busy || locked || !csrf}>{busy ? "Checking…" : "Verify"}</button>
+        <button type="button" className="secondary" onClick={resend} disabled={locked || !csrf}>
           Send a new code
         </button>
       </div>

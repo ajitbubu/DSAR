@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 TEST_DB_ENV := IDP_REQUIRE_DB=1
 
-.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e test-connectors lint fmt typecheck contracts smoke policy-pin policy-schema logscan
+.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e test-connectors lint fmt typecheck contracts smoke policy-pin policy-schema logscan security
 
 help:  ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -60,6 +60,13 @@ policy-schema:  ## Regenerate the policy-pack JSON Schema
 
 contracts:  ## Regenerate contracts/openapi.json from the API
 	uv run python -m idprivacy.scripts.export_openapi contracts/openapi.json
+
+security:  ## Dependency audits (pip-audit, pnpm audit) and secret scan (gitleaks)
+	uv export --all-packages --no-dev --no-emit-workspace --no-hashes -q -o .requirements.audit.txt
+	uvx pip-audit -r .requirements.audit.txt --disable-pip --no-deps --progress-spinner off
+	rm -f .requirements.audit.txt
+	pnpm audit --prod
+	docker run --rm -v "$(CURDIR):/repo" zricethezav/gitleaks:latest git /repo --no-banner --redact --config /repo/.gitleaks.toml
 
 logscan:  ## Fail if seeded identifiers, tokens or passwords appear in any service log
 	./infra/compose/logscan.sh

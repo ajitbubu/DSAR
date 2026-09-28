@@ -79,3 +79,40 @@ def install_problem_handlers(app: FastAPI) -> None:
             for e in exc.errors()
         ]
         return problem(422, "Unprocessable Entity", errors=errors)
+
+
+_SECURITY_HEADERS = [
+    (b"x-content-type-options", b"nosniff"),
+    (b"referrer-policy", b"no-referrer"),
+    (b"x-frame-options", b"DENY"),
+    (b"cross-origin-resource-policy", b"same-origin"),
+    (b"content-security-policy", b"default-src 'none'; frame-ancestors 'none'"),
+]
+
+
+class SecurityHeadersMiddleware:
+    """Defence in depth: the API isn't browser-facing, but its responses stay inert if
+    one is ever rendered. /v1 responses are never cached."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        no_store = scope.get("path", "").startswith("/v1/")
+
+        async def with_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                present = {k.lower() for k, _ in headers}
+                for key, value in _SECURITY_HEADERS:
+                    if key not in present:
+                        headers.append((key, value))
+                if no_store and b"cache-control" not in present:
+                    headers.append((b"cache-control", b"no-store"))
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, with_headers)

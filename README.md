@@ -6,7 +6,7 @@ A DPDP-first platform for automating Data Principal / Data Subject rights reques
 - Milestones and acceptance criteria: [`docs/milestones.md`](docs/milestones.md)
 - Open security and tenancy decisions: [`docs/open-decisions.md`](docs/open-decisions.md)
 
-**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) M3 (connector SDK, discovery, staff console) M4 (retention engine, legal holds, review) M5 (maker-checker approval) M6 (idempotent fulfilment) M7 (verification, evidence) and M8 (completion, closure, full E2E) complete.
+**Status:** the first vertical slice (Right to Erasure, milestones M0–M9) is complete and verified end to end. Production readiness depends on the open decisions in [`docs/open-decisions.md`](docs/open-decisions.md). See [`docs/architecture/production-deployment.md`](docs/architecture/production-deployment.md).
 
 ## Layout
 
@@ -34,6 +34,8 @@ make smoke     # Keycloak token -> API authz, outbox -> worker, log redaction
 make test      # API (needs Postgres + Redis), worker, web
 make test-e2e  # Playwright against the running stack
 make lint      # ruff, mypy --strict, tsc
+make logscan   # fail if seeded identifiers/tokens appear in service logs
+make security  # pip-audit, pnpm audit, gitleaks
 ```
 
 Try the Data Principal flow at http://localhost:3000/r/acme (use `priya.sharma@example.in` to hit seeded mock records), then sign in to the console at http://localhost:3000/ops as `analyst@acme.example.test`. The dev password is in the Keycloak realm fixture. The stack runs the API with `IDP_ENV=test`, so the verify screen shows the mock OTP (development only).
@@ -119,3 +121,11 @@ Every credential in this repo (`.env.example`, the Keycloak realm, `seaweedfs/s3
 - **Screen 4, the dashboard:** open, needs-analyst, awaiting-approval, overdue and deadline-not-validated counts, status filters, and an SLA state per case (`UNVALIDATED` while the pack's deadlines lack legal sign-off).
 - **Screen 12, the audit timeline:** every event for the case, with hash prefixes, plus "Verify hash chain" for auditors.
 - **`e2e/erasure-end-to-end.spec.ts`:** the whole vertical slice through the real stack. `make logscan` fails the build if seeded identifiers, tokens or dev passwords appear in any service log.
+
+## What M9 provides
+
+- **Generated authorisation matrix** over every protected route: anonymous 401, no-role 403, and 404 for a full-role user from another tenant, with no data leaked. New routes are covered automatically.
+- **Threat coverage index:** every threat in the model maps to tests, checked by `tests/security/test_threat_coverage.py`.
+- **More hardening:** SQL-injection static rule and payload tests, credential-reference tests, security headers on all API responses, HSTS over https, and rate limits as validated settings.
+- **Scanning:** `make security` and a CI `security` job (pip-audit, pnpm audit, gitleaks with a documented, value-exact allowlist).
+- **Docs:** production deployment architecture, and a threat-model review with residual risks. Sign-off is pending a named owner.

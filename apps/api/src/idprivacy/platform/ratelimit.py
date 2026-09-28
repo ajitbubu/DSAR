@@ -7,9 +7,12 @@ import hashlib
 import threading
 import time
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import redis
+
+if TYPE_CHECKING:
+    from idprivacy.config import Settings
 
 
 @dataclass(frozen=True)
@@ -78,8 +81,23 @@ class MemoryRateLimiter:
             self._hits.clear()
 
 
-# Public-intake limits. Tuned in M9 hardening.
-SUBMIT_PER_IP = Limit("submit:ip", 10, 600)
-SUBMIT_PER_CONTACT = Limit("submit:contact", 3, 3600)  # stops OTP-bombing one person
-CONFIRM_PER_IP = Limit("confirm:ip", 30, 600)
-RESEND_PER_IP = Limit("resend:ip", 10, 600)
+@dataclass(frozen=True)
+class PublicLimits:
+    submit_per_ip: Limit
+    submit_per_contact: Limit  # stops OTP-bombing one person
+    confirm_per_ip: Limit
+    resend_per_ip: Limit
+
+
+def _parse(scope: str, spec: str) -> Limit:
+    hits, _, window = spec.partition("/")
+    return Limit(scope, int(hits), int(window))
+
+
+def public_limits(settings: "Settings") -> PublicLimits:
+    return PublicLimits(
+        submit_per_ip=_parse("submit:ip", settings.rate_limit_submit_per_ip),
+        submit_per_contact=_parse("submit:contact", settings.rate_limit_submit_per_contact),
+        confirm_per_ip=_parse("confirm:ip", settings.rate_limit_confirm_per_ip),
+        resend_per_ip=_parse("resend:ip", settings.rate_limit_resend_per_ip),
+    )
