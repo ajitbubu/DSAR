@@ -70,3 +70,19 @@ def test_test_support_routes_only_exist_in_test_env() -> None:
 
     assert any(p.startswith("/v1/test-support") for p in paths("test"))
     assert not any(p.startswith("/v1/test-support") for p in paths("local"))
+
+
+def test_rate_limit_reset_is_test_only_and_bff_only() -> None:
+    from fastapi.testclient import TestClient
+
+    from tests.conftest import bff
+
+    test_app = TestClient(
+        create_app(make_settings(), key_resolver=lambda _t: None, readiness_probes={})
+    )
+    assert test_app.post("/v1/test-support/rate-limits/reset").status_code == 401
+    assert test_app.post("/v1/test-support/rate-limits/reset", headers=bff()).status_code == 204
+    local_app = TestClient(
+        create_app(make_settings(env="local"), key_resolver=lambda _t: None, readiness_probes={})
+    )
+    assert local_app.post("/v1/test-support/rate-limits/reset", headers=bff()).status_code == 404

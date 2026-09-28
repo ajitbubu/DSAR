@@ -8,6 +8,7 @@ WORKDIR /src
 COPY pyproject.toml uv.lock .python-version ./
 COPY apps/api apps/api
 COPY apps/worker apps/worker
+COPY packages/connector-sdk packages/connector-sdk
 COPY packages/mock-connectors packages/mock-connectors
 COPY packages/policy-packs packages/policy-packs
 ENV IDP_POLICY_PACKS_DIR=/src/packages/policy-packs
@@ -27,4 +28,4 @@ FROM base AS mock-connectors
 RUN uv sync --frozen --no-dev --package idprivacy-mock-connectors --no-editable
 USER app
 EXPOSE 8100
-CMD ["uvicorn", "mock_connectors.app:app", "--host", "0.0.0.0", "--port", "8100", "--no-server-header"]
+CMD ["uvicorn", "mock_connectors.app:app", "--factory", "--host", "0.0.0.0", "--port", "8100", "--no-server-header"]

@@ -6,7 +6,7 @@ A DPDP-first platform for automating Data Principal / Data Subject rights reques
 - Milestones and acceptance criteria: [`docs/milestones.md`](docs/milestones.md)
 - Open security and tenancy decisions: [`docs/open-decisions.md`](docs/open-decisions.md)
 
-**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) and M2 (policy packs, jurisdiction, identity resolution) complete.
+**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) and M3 (connector SDK, discovery, staff console) complete.
 
 ## Layout
 
@@ -14,7 +14,8 @@ A DPDP-first platform for automating Data Principal / Data Subject rights reques
 apps/api                 FastAPI + shared domain package `idprivacy` (Alembic migrations here)
 apps/worker              Celery workers + outbox relay (`idprivacy_worker`)
 apps/web                 Next.js UI + BFF (pages arrive in M1)
-packages/mock-connectors Simulated CRM / document store (filled in during M3)
+packages/connector-sdk   Connector interface, http_v1 wire models, HTTP adapter, conformance kit
+packages/mock-connectors Simulated CRM + document store speaking http_v1 (seeded, fault injection)
 packages/policy-packs    Versioned regulation packs (DPDP 1.0.0), manifest of pinned hashes, JSON Schema
 contracts/openapi.json   Generated API contract; tests fail on drift (`make contracts`)
 infra/compose            Docker Compose stack, Postgres role init, Keycloak dev realm, S3 stand-in
@@ -35,7 +36,7 @@ make test-e2e  # Playwright against the running stack
 make lint      # ruff, mypy --strict, tsc
 ```
 
-Try the Data Principal flow at http://localhost:3000/r/acme. The stack runs the API with `IDP_ENV=test`, so the verify screen shows the mock OTP (development only).
+Try the Data Principal flow at http://localhost:3000/r/acme (use `priya.sharma@example.in` to hit seeded mock records), then sign in to the console at http://localhost:3000/ops as `analyst@acme.example.test`. The dev password is in the Keycloak realm fixture. The stack runs the API with `IDP_ENV=test`, so the verify screen shows the mock OTP (development only).
 
 | Service | URL | Notes |
 |---|---|---|
@@ -72,3 +73,10 @@ Every credential in this repo (`.env.example`, the Keycloak realm, `seaweedfs/s3
 - **Pipeline:** OTP verification writes a `case.verified` outbox message. The worker resolves identity, then decides jurisdiction from the tenant's enabled packs and their declared applicability, then pins the case to `code@version` or routes it to manual handling.
 - **Identity resolution:** conservative normalisation (IDNA, NFC, E.164, ASCII digits only) and assurance levels. Only the OTP-verified contact is VERIFIED.
 - **Workflow engine:** pack transitions are enforced for actor type, permission and tenant, and unimplemented guards fail closed. An architecture test keeps regulation names out of platform code.
+
+## What M3 provides
+
+- **Connector SDK** (`packages/connector-sdk`): the five-operation interface, strict bounded wire models (no personal data in match attributes), an `HttpConnector` with size caps and retryability mapping, and a conformance kit.
+- **Mock connectors:** a CRM and a document store with per-account data, idempotent actions, a call log and fault injection. Both pass the conformance kit.
+- **Discovery:** after jurisdiction, the worker runs one job per enabled connector using **verified identifiers only**, stores pointers and fingerprints (no record contents), and retries retryable failures without duplicating. The case then moves to `DISCOVERY_COMPLETE`.
+- **Staff console** (`/ops`): OIDC login (PKCE) with Redis-backed server-side sessions, a case list, case details, and source-by-source discovery results. Case reads are audited, and other tenants' cases return 404.

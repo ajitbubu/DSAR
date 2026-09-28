@@ -1,0 +1,57 @@
+{
+  "_note": "Synthetic data for local development and tests only. Identifiers are fictional.",
+  "accounts": {
+    "acme": {
+      "crm": [
+        {"ref": "crm:contact:c-1001", "record_type": "crm.contact", "categories": ["contact", "marketing"],
+         "identifiers": {"EMAIL": ["priya.sharma@example.in"], "PHONE": ["+919876543210"], "CUSTOMER_ID": ["CUST-1001"]},
+         "attributes": {"status": "active", "created_year": 2023, "marketing_opt_in": true},
+         "content": {"name": "Priya Sharma", "city": "Pune"}},
+        {"ref": "crm:invoice:i-5001", "record_type": "crm.invoice", "categories": ["financial"],
+         "identifiers": {"EMAIL": ["priya.sharma@example.in"], "CUSTOMER_ID": ["CUST-1001"]},
+         "attributes": {"has_open_invoice": true, "created_year": 2025},
+         "content": {"amount_inr": 4999, "status": "unpaid"}},
+        {"ref": "crm:ticket:t-7001", "record_type": "crm.ticket", "categories": ["contact", "support"],
+         "identifiers": {"PHONE": ["+919876543210"]},
+         "attributes": {"status": "closed", "created_year": 2024},
+         "content": {"subject": "Delivery delayed"}},
+        {"ref": "crm:contact:c-2002", "record_type": "crm.contact", "categories": ["contact"],
+         "identifiers": {"EMAIL": ["someone.else@example.in"], "CUSTOMER_ID": ["CUST-2002"]},
+         "attributes": {"status": "active", "created_year": 2022},
+         "content": {"name": "Someone Else", "city": "Chennai"}},
+        {"ref": "crm:contact:c-3003", "record_type": "crm.contact", "categories": ["contact", "marketing"],
+         "identifiers": {"EMAIL": ["rahul.verma@example.in"], "CUSTOMER_ID": ["CUST-3003"]},
+         "attributes": {"status": "active", "created_year": 2021},
+         "content": {"name": "Rahul Verma", "city": "Delhi"}}
+      ],
+      "docs": [
+        {"ref": "docs:file:d-3001", "record_type": "docs.file", "categories": ["correspondence"],
+         "identifiers": {"EMAIL": ["priya.sharma@example.in"]},
+         "attributes": {"mime_type": "application/pdf", "created_year": 2024},
+         "content": {"title": "Complaint letter"}},
+        {"ref": "docs:file:d-3002", "record_type": "docs.file", "categories": ["kyc"],
+         "identifiers": {"PHONE": ["+919876543210"], "CUSTOMER_ID": ["CUST-1001"]},
+         "attributes": {"mime_type": "image/jpeg", "created_year": 2023},
+         "content": {"title": "ID scan"}},
+        {"ref": "docs:file:d-4001", "record_type": "docs.file", "categories": ["correspondence"],
+         "identifiers": {"EMAIL": ["rahul.verma@example.in"]},
+         "attributes": {"mime_type": "application/pdf", "created_year": 2022},
+         "content": {"title": "Warranty claim"}}
+      ]
+    },
+    "globex": {
+      "crm": [
+        {"ref": "crm:contact:g-1001", "record_type": "crm.contact", "categories": ["contact", "financial"],
+         "identifiers": {"EMAIL": ["priya.sharma@example.in"], "CUSTOMER_ID": ["GX-1001"]},
+         "attributes": {"status": "active", "created_year": 2024},
+         "content": {"name": "Priya Sharma", "account": "savings"}}
+      ],
+      "docs": [
+        {"ref": "docs:file:g-3001", "record_type": "docs.file", "categories": ["kyc"],
+         "identifiers": {"EMAIL": ["priya.sharma@example.in"]},
+         "attributes": {"mime_type": "application/pdf", "created_year": 2024},
+         "content": {"title": "Account opening form"}}
+      ]
+    }
+  }
+}

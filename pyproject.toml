@@ -7,7 +7,7 @@ requires-python = ">=3.12,<3.13"
 package = false
 
 [tool.uv.workspace]
-members = ["apps/api", "apps/worker", "packages/mock-connectors"]
+members = ["apps/api", "apps/worker", "packages/connector-sdk", "packages/mock-connectors"]
 
 [tool.uv.sources]
 idprivacy = { workspace = true }

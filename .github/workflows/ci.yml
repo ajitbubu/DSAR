@@ -50,13 +50,17 @@ jobs:
       - run: uv sync --all-packages --frozen
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run mypy apps/api/src apps/worker/src packages/mock-connectors/src
+      - run: uv run mypy apps/api/src apps/worker/src packages/mock-connectors/src packages/connector-sdk/src
       - name: API tests
         working-directory: apps/api
         run: uv run pytest -q
       - name: Worker tests
         working-directory: apps/worker
         run: uv run pytest -q
+      - name: Connector SDK and mock-connector conformance
+        run: |
+          uv run pytest -q packages/connector-sdk/tests
+          uv run pytest -q packages/mock-connectors/tests
 
   web:
     runs-on: ubuntu-latest
@@ -94,7 +98,7 @@ jobs:
       - name: No requester PII in service logs
         run: |
           if docker compose -f infra/compose/docker-compose.yml logs api web worker outbox-relay \
-               | grep -Ei "e2e-[0-9]+@example\.in|E2E Requester|CUST-2002"; then
+               | grep -Ei "e2e-[0-9]+@example\.in|E2E Requester|CUST-2002|priya|eyJhbGci"; then
             echo "PII found in logs"; exit 1
           fi
       - if: failure()

@@ -24,6 +24,12 @@ There are two very different principals. Staff are long-lived org users with rol
 ### BFF → API service credential (public routes)
 Public Data Principal routes have no end-user bearer token, so the API requires a **BFF service credential** (`X-Internal-Auth`, a pre-shared secret compared in constant time). This keeps the API non-browser-facing and lets it trust the BFF-supplied `X-Client-IP` for rate limiting. The pre-shared secret is an MVP stand-in; production should use mTLS or workload identity (decision D-18).
 
+### Staff sessions (implemented M3)
+- The BFF uses `openid-client` (authorization code + PKCE S256, state, nonce, ID-token validation). The OIDC transaction lives in a 10-minute httpOnly cookie.
+- Tokens live in **Redis**, keyed by SHA-256 of an opaque 256-bit session id, with an 8-hour absolute lifetime. The browser only holds the id (`__Host-idp_staff`). Access tokens are refreshed server-side.
+- The staff session cookie is `SameSite=Lax`, because the login redirect chain starts at the IdP (cross-site). State changes are still protected by the double-submit CSRF token plus the Origin and Sec-Fetch-Site checks. Logout is CSRF-protected and ends the IdP session.
+- Post-login return targets are restricted to `/ops/...` after URL normalisation, which prevents open redirects.
+
 ### CSRF
 Cookie-authenticated state changes (staff and DP) go through the BFF, which enforces a double-submit CSRF token plus `Origin`/`Sec-Fetch-Site` checks. The API itself is bearer-only, so it isn't CSRF-exposed.
 

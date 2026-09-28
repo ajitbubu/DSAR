@@ -32,6 +32,13 @@ class Connector(Protocol):
 ### Verification
 `verify_action` confirms a specific action. The platform **also** runs an independent `discover` rescan and reconciles. A connector's claim alone doesn't close a task.
 
+## Implementation notes (M3)
+- The interface is **synchronous** (`Connector` Protocol in `packages/connector-sdk`). Workers are sync Celery processes, and a thread-per-call model is enough at DSAR volumes.
+- The wire protocol is `http_v1` (JSON over HTTPS, bearer token): `/health`, `/discover`, `/actions`, `/verify`, `/evidence`. `HttpConnector` enforces a 256 KB response cap, strict model validation, no redirects, and a retryable/non-retryable error mapping (timeouts and 429/502/503/504 are retryable).
+- Match attributes must be non-personal. Values that look like emails or phone numbers are rejected by the SDK model.
+- The conformance kit (`idprivacy_connector_sdk.testing`) runs read-only checks first, then destructive ones: pagination completeness, stable fingerprints, duplicate-key replay, 8-way concurrent same-key calls, `ALREADY_ABSENT` on re-delete, evidence round-trip, malformed-input rejection, and authentication. A deliberately broken connector test proves the kit catches failures.
+- Discovery calls connectors **outside** DB transactions, then persists matches with `ON CONFLICT DO NOTHING`, so retries never duplicate. Only identifiers whose assurance the pinned pack allows (`VERIFIED` in DPDP 1.0.0) are sent.
+
 ## Consequences
 + Destructive calls are safe under retries, worker crashes and duplicate deliveries.
 − Every real connector must implement key storage on its side, or wrap a target system that supports idempotency natively.

@@ -1,9 +1,12 @@
 [project]
 name = "idprivacy-mock-connectors"
 version = "0.1.0"
-description = "Simulated CRM and document-store systems for local development (M3 fills these in)"
+description = "Simulated CRM and document-store systems implementing the connector wire protocol"
 requires-python = ">=3.12,<3.13"
-dependencies = ["fastapi>=0.115", "uvicorn[standard]>=0.30"]
+dependencies = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "idprivacy-connector-sdk"]
+
+[tool.uv.sources]
+idprivacy-connector-sdk = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

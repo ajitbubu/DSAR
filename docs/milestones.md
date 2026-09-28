@@ -36,7 +36,7 @@ DPDP pack v1.0.0 (rights catalogue with six rights, erasure workflow, placeholde
 - Handler code has no regulation-specific branches. A grep-based architecture test forbids `"DPDP"` literals outside `policy/` and the pack files.
 - Identity resolution unit tests cover normalisation edge cases.
 
-## M3 — Connector SDK and discovery
+## M3 — Connector SDK and discovery ✅
 `connector-sdk` interface plus conformance kit. Mock CRM and mock document store with seeded data for two tenants. Discovery fan-out, `DataMatch` persistence (pointers, fingerprints, non-PII attributes). Discovery results UI.
 
 **Acceptance**

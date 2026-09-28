@@ -24,6 +24,8 @@ erDiagram
   PRIVACY_REQUEST ||--o| JURISDICTION_DECISION : "governed by"
   JURISDICTION_DECISION }o--|| POLICY_PACK : "pins version"
   PRIVACY_REQUEST ||--o{ DISCOVERY_JOB : runs
+  TENANT ||--o{ CONNECTOR_CONFIG : configures
+  CONNECTOR_CONFIG ||--o{ DISCOVERY_JOB : "searched by"
   DISCOVERY_JOB ||--o{ DATA_MATCH : finds
   DATA_MATCH ||--o{ RETENTION_DECISION : "decided by (latest effective)"
   LEGAL_HOLD }o--o{ DATA_MATCH : "may constrain"
@@ -155,11 +157,20 @@ erDiagram
     int response_days "value = decision D-9"
     string clock_start "VERIFIED|SUBMITTED"
   }
+  CONNECTOR_CONFIG {
+    uuid id PK
+    uuid tenant_id FK
+    string connector_id "UK per tenant"
+    string kind "http_v1"
+    string base_url
+    string credential_ref "e.g. env:NAME (D-5); never the secret"
+    bool enabled
+  }
   DISCOVERY_JOB {
     uuid id PK
     uuid tenant_id FK
     uuid request_id FK
-    string connector_id
+    uuid connector_config_id FK
     string purpose "INITIAL|VERIFICATION_RESCAN"
     string status
     timestamptz started_at

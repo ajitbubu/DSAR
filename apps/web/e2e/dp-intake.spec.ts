@@ -1,4 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
+import { resetRateLimits } from "./helpers";
+
+test.beforeEach(async ({ request }) => resetRateLimits(request));
 
 async function fillForm(page: Page, email: string) {
   await page.goto("/r/acme");

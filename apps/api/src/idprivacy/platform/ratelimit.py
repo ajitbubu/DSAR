@@ -49,6 +49,11 @@ class RedisRateLimiter:
         if int(count) > limit.max_hits:
             raise RateLimitExceeded(max(int(ttl), 1))
 
+    def reset(self) -> None:
+        """Test support only (mounted when ENV=test)."""
+        for key in self._redis.scan_iter("rl:*"):
+            self._redis.delete(key)
+
 
 class MemoryRateLimiter:
     """Single-process limiter for local/test only (refused elsewhere by Settings)."""
@@ -67,6 +72,10 @@ class MemoryRateLimiter:
             self._hits[key] = (count, reset_at)
         if count > limit.max_hits:
             raise RateLimitExceeded(max(int(reset_at - now), 1))
+
+    def reset(self) -> None:
+        with self._lock:
+            self._hits.clear()
 
 
 # Public-intake limits. Tuned in M9 hardening.

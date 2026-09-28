@@ -20,3 +20,9 @@ def latest_mock_otp(request: Request, challenge_id: UUID) -> MockOtp:
     if code is None:
         raise HTTPException(404, "Not Found")
     return MockOtp(code=code)
+
+
+@router.post("/rate-limits/reset", status_code=204, dependencies=[Depends(InternalBff())])
+def reset_rate_limits(request: Request) -> None:
+    """Lets repeated end-to-end runs reuse the seeded test identities."""
+    request.app.state.rate_limiter.reset()

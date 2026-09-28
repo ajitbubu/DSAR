@@ -34,6 +34,8 @@ class Settings(BaseSettings):
 
     # Stand-in providers. Production choices are open decisions.
     otp_provider: Literal["mock"] = "mock"
+    # Connector credentials are resolved by reference (open decision D-5).
+    connector_credential_source: Literal["env"] = "env"
     key_provider: Literal["local"] = "local"
     local_master_key: SecretStr | None = None
 
@@ -65,6 +67,8 @@ class Settings(BaseSettings):
                 errors.append("mock OTP provider is only permitted in local/test")
             if self.key_provider == "local":
                 errors.append("local key provider is only permitted in local/test")
+            if self.connector_credential_source == "env":
+                errors.append("env connector secrets are only permitted in local/test")
         allowed = {"RS256", "RS384", "RS512", "ES256", "ES384", "PS256"}
         if not self.oidc_algorithms or set(self.oidc_algorithms) - allowed:
             errors.append("oidc_algorithms must be a non-empty subset of asymmetric algorithms")

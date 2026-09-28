@@ -24,6 +24,234 @@
         "title": "AdditionalIdentifier",
         "type": "object"
       },
+      "CaseDetail": {
+        "properties": {
+          "display_id": {
+            "title": "Display Id",
+            "type": "string"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "identifiers": {
+            "items": {
+              "$ref": "#/components/schemas/MaskedIdentifier"
+            },
+            "title": "Identifiers",
+            "type": "array"
+          },
+          "jurisdiction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Jurisdiction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "policy_pack": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Pack"
+          },
+          "rights": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rights",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CaseStatus"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "workflow": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow"
+          }
+        },
+        "required": [
+          "id",
+          "display_id",
+          "status",
+          "rights",
+          "submitted_at",
+          "due_at",
+          "policy_pack",
+          "workflow",
+          "version",
+          "identifiers",
+          "jurisdiction"
+        ],
+        "title": "CaseDetail",
+        "type": "object"
+      },
+      "CasePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CaseSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "CasePage",
+        "type": "object"
+      },
+      "CaseStatus": {
+        "enum": [
+          "SUBMITTED",
+          "PENDING_VERIFICATION",
+          "VERIFICATION_FAILED",
+          "VERIFIED",
+          "JURISDICTION_DETERMINED",
+          "DISCOVERY_IN_PROGRESS",
+          "DISCOVERY_COMPLETE",
+          "RETENTION_EVALUATED",
+          "UNDER_REVIEW",
+          "PENDING_APPROVAL",
+          "APPROVED",
+          "REJECTED",
+          "FULFILMENT_IN_PROGRESS",
+          "VERIFICATION_IN_PROGRESS",
+          "RECONCILIATION_REQUIRED",
+          "VERIFIED_COMPLETE",
+          "EVIDENCE_GENERATED",
+          "RESPONDED",
+          "CLOSED",
+          "ON_HOLD",
+          "CANCELLED",
+          "PENDING_MANUAL_HANDLING"
+        ],
+        "title": "CaseStatus",
+        "type": "string"
+      },
+      "CaseSummary": {
+        "properties": {
+          "display_id": {
+            "title": "Display Id",
+            "type": "string"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "policy_pack": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Pack"
+          },
+          "rights": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rights",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CaseStatus"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "workflow": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow"
+          }
+        },
+        "required": [
+          "id",
+          "display_id",
+          "status",
+          "rights",
+          "submitted_at",
+          "due_at",
+          "policy_pack",
+          "workflow"
+        ],
+        "title": "CaseSummary",
+        "type": "object"
+      },
       "ChainVerificationResponse": {
         "properties": {
           "events_checked": {
@@ -77,6 +305,31 @@
           "value"
         ],
         "title": "Contact",
+        "type": "object"
+      },
+      "DiscoveryView": {
+        "properties": {
+          "case_status": {
+            "$ref": "#/components/schemas/CaseStatus"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceView"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "total_matches": {
+            "title": "Total Matches",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "case_status",
+          "total_matches",
+          "sources"
+        ],
+        "title": "DiscoveryView",
         "type": "object"
       },
       "ErasureRequestAccepted": {
@@ -191,6 +444,124 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Jurisdiction": {
+        "properties": {
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "policy_pack": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Pack"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "policy_pack",
+          "rationale"
+        ],
+        "title": "Jurisdiction",
+        "type": "object"
+      },
+      "MaskedIdentifier": {
+        "properties": {
+          "assurance": {
+            "enum": [
+              "VERIFIED",
+              "CLAIMED"
+            ],
+            "title": "Assurance",
+            "type": "string"
+          },
+          "masked": {
+            "title": "Masked",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "masked",
+          "assurance"
+        ],
+        "title": "MaskedIdentifier",
+        "type": "object"
+      },
+      "MatchView": {
+        "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Attributes",
+            "type": "object"
+          },
+          "data_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Categories",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "matched_on": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Matched On",
+            "type": "array"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          },
+          "source_record_ref": {
+            "title": "Source Record Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_record_ref",
+          "record_type",
+          "data_categories",
+          "matched_on",
+          "attributes"
+        ],
+        "title": "MatchView",
         "type": "object"
       },
       "MeResponse": {
@@ -435,6 +806,67 @@
         "title": "RightSummary",
         "type": "object"
       },
+      "SourceView": {
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "connector_id": {
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "job_status": {
+            "title": "Job Status",
+            "type": "string"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/MatchView"
+            },
+            "title": "Matches",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connector_id",
+          "display_name",
+          "job_status",
+          "attempts",
+          "error_code",
+          "finished_at",
+          "matches"
+        ],
+        "title": "SourceView",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -549,6 +981,217 @@
         "summary": "Verify Audit Chain",
         "tags": [
           "audit"
+        ]
+      }
+    },
+    "/v1/cases": {
+      "get": {
+        "operationId": "list_cases_v1_cases_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CaseStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CasePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Cases",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/v1/cases/{case_id}": {
+      "get": {
+        "operationId": "get_case_v1_cases__case_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Case",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/v1/cases/{case_id}/discovery": {
+      "get": {
+        "operationId": "get_discovery_v1_cases__case_id__discovery_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Discovery",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/v1/cases/{case_id}/discovery/retry": {
+      "post": {
+        "operationId": "retry_discovery_v1_cases__case_id__discovery_retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Retry Discovery V1 Cases  Case Id  Discovery Retry Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Discovery",
+        "tags": [
+          "cases"
         ]
       }
     },

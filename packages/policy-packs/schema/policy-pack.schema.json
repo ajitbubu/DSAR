@@ -159,6 +159,7 @@
         "self:read",
         "audit:verify",
         "policy:read",
+        "case:read",
         "case:review",
         "case:approve",
         "case:close"

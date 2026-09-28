@@ -19,6 +19,7 @@ from idprivacy.domain.cases.lifecycle import CaseStatus, IntakeEvent, transition
 from idprivacy.domain.identity import resolution
 from idprivacy.domain.policy.jurisdiction import Decision, JurisdictionInputs, decide
 from idprivacy.domain.policy.registry import PolicyRegistry, PublishedPack
+from idprivacy.platform import outbox
 from idprivacy.platform.crypto import FieldCipher, KeyProvider
 from idprivacy.platform.models import (
     IdentityVerification,
@@ -148,4 +149,12 @@ def process_verified_case(
     event = (
         IntakeEvent.DETERMINE_JURISDICTION if decision.executable else IntakeEvent.ROUTE_TO_MANUAL
     )
-    return transition(session, request, event, actor_type="SYSTEM", actor_ref=ACTOR)
+    status = transition(session, request, event, actor_type="SYSTEM", actor_ref=ACTOR)
+    if status == CaseStatus.JURISDICTION_DETERMINED:
+        outbox.enqueue(
+            session,
+            tenant_id=request.tenant_id,
+            topic="case.discovery_requested",
+            payload={"request_id": request.id},
+        )
+    return status

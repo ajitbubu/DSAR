@@ -329,3 +329,92 @@ class RequestIdentifier(Base):
     assurance: Mapped[str] = mapped_column(String(16), nullable=False)
     source: Mapped[str] = mapped_column(String(16), nullable=False)
     created_at: Mapped[datetime] = _created_at()
+
+
+# ---------- M3: connectors and discovery --------------------------------------------
+
+
+class ConnectorConfig(Base):
+    """A tenant's connection to one source system. Credentials are referenced, never stored."""
+
+    __tablename__ = "connector_config"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "connector_id", name="uq_connector_config_connector"),
+        UniqueConstraint("tenant_id", "id", name="uq_connector_config_tenant_id_id"),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    connector_id: Mapped[str] = mapped_column(String(40), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    base_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    credential_ref: Mapped[str] = mapped_column(String(200), nullable=False)
+    enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class DiscoveryJob(Base):
+    __tablename__ = "discovery_job"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "request_id",
+            "connector_config_id",
+            "purpose",
+            name="uq_discovery_job_per_connector",
+        ),
+        UniqueConstraint("tenant_id", "id", name="uq_discovery_job_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "request_id"],
+            ["privacy_request.tenant_id", "privacy_request.id"],
+            name="fk_discovery_job_request",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "connector_config_id"],
+            ["connector_config.tenant_id", "connector_config.id"],
+            name="fk_discovery_job_connector",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    connector_config_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(24), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    match_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_code: Mapped[str | None] = mapped_column(String(40))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class DataMatch(Base):
+    """A pointer to one source record. Never the record's content."""
+
+    __tablename__ = "data_match"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "discovery_job_id", "source_record_ref", name="uq_data_match_per_job"
+        ),
+        UniqueConstraint("tenant_id", "id", name="uq_data_match_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "discovery_job_id"],
+            ["discovery_job.tenant_id", "discovery_job.id"],
+            name="fk_data_match_job",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    discovery_job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    connector_id: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_record_ref: Mapped[str] = mapped_column(String(128), nullable=False)
+    record_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    data_categories: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    matched_on: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    attributes: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = _created_at()

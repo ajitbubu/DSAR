@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 TEST_DB_ENV := IDP_REQUIRE_DB=1
 
-.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e lint fmt typecheck contracts smoke policy-pin policy-schema
+.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e test-connectors lint fmt typecheck contracts smoke policy-pin policy-schema
 
 help:  ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -24,13 +24,17 @@ logs:  ## Tail logs
 ps:  ## Show service status
 	$(COMPOSE) ps
 
-test: test-api test-worker test-web  ## Run all test suites
+test: test-api test-worker test-connectors test-web  ## Run all test suites
 
 test-api: up-deps  ## API tests (needs Postgres)
 	cd apps/api && $(TEST_DB_ENV) uv run pytest -q
 
 test-worker:  ## Worker tests
 	cd apps/worker && uv run pytest -q
+
+test-connectors:  ## Connector SDK + mock connector conformance
+	uv run pytest -q packages/connector-sdk/tests
+	uv run pytest -q packages/mock-connectors/tests
 
 test-web:  ## Web unit tests
 	pnpm test:web
@@ -41,7 +45,7 @@ test-e2e:  ## Playwright against the running stack (`make up` first)
 lint:  ## Lint and type-check everything
 	uv run ruff check .
 	uv run ruff format --check .
-	uv run mypy apps/api/src apps/worker/src packages/mock-connectors/src
+	uv run mypy apps/api/src apps/worker/src packages/mock-connectors/src packages/connector-sdk/src
 	pnpm lint:web
 
 fmt:  ## Format Python

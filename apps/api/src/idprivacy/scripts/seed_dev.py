@@ -13,7 +13,14 @@ from sqlalchemy.orm import Session
 from idprivacy.config import DEV_ENVIRONMENTS
 from idprivacy.domain.audit import service as audit
 from idprivacy.platform.crypto import FieldCipher, build_key_provider
-from idprivacy.platform.models import AppUser, Role, Tenant, TenantPolicyPack, UserRole
+from idprivacy.platform.models import (
+    AppUser,
+    ConnectorConfig,
+    Role,
+    Tenant,
+    TenantPolicyPack,
+    UserRole,
+)
 
 ISSUER = os.environ.get("IDP_OIDC_ISSUER", "http://localhost:8080/realms/idprivacy")
 
@@ -68,6 +75,8 @@ ROLE_CODES = ("TENANT_ADMIN", "PRIVACY_ANALYST", "APPROVER", "AUDITOR")
 # Both dev tenants process data in India and enable the DPDP pack.
 DEV_REGION = "IN"
 DEV_PACKS = [("DPDP", "1.0.0")]
+MOCK_BASE = os.environ.get("IDP_MOCK_CONNECTORS_URL", "http://mock-connectors:8100")
+DEV_CONNECTORS = [("mock-crm", "CRM (mock)", "crm"), ("mock-docs", "Document store (mock)", "docs")]
 
 
 def seed(session: Session, cipher: FieldCipher) -> None:
@@ -86,6 +95,25 @@ def seed(session: Session, cipher: FieldCipher) -> None:
                         pack_code=code,
                         pack_version=version,
                         priority=priority,
+                        enabled=True,
+                    )
+                )
+        for connector_id, display, system in DEV_CONNECTORS:
+            exists = session.execute(
+                select(ConnectorConfig).where(
+                    ConnectorConfig.tenant_id == tenant_id,
+                    ConnectorConfig.connector_id == connector_id,
+                )
+            ).scalar_one_or_none()
+            if exists is None:
+                session.add(
+                    ConnectorConfig(
+                        tenant_id=tenant_id,
+                        connector_id=connector_id,
+                        display_name=display,
+                        kind="http_v1",
+                        base_url=f"{MOCK_BASE}/{slug}/{system}",
+                        credential_ref="env:IDP_CONNECTOR_TOKEN_MOCK",
                         enabled=True,
                     )
                 )

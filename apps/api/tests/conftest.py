@@ -28,7 +28,14 @@ from idprivacy.config import Settings
 from idprivacy.domain.policy.loader import load_all
 from idprivacy.domain.policy.registry import publish
 from idprivacy.main import create_app
-from idprivacy.platform.models import AppUser, Role, Tenant, TenantPolicyPack, UserRole
+from idprivacy.platform.models import (
+    AppUser,
+    ConnectorConfig,
+    Role,
+    Tenant,
+    TenantPolicyPack,
+    UserRole,
+)
 
 API_DIR = Path(__file__).resolve().parents[1]
 POLICY_PACKS = API_DIR.parents[1] / "packages" / "policy-packs"
@@ -120,7 +127,9 @@ def make_tenant(migrator_engine: Engine) -> Callable[..., uuid.UUID]:
     """A tenant processing in India with the DPDP pack enabled, unless overridden."""
 
     def _make(
-        region: str | None = "IN", packs: tuple[tuple[str, str], ...] = (("DPDP", "1.0.0"),)
+        region: str | None = "IN",
+        packs: tuple[tuple[str, str], ...] = (("DPDP", "1.0.0"),),
+        account: str | None = "acme",
     ) -> uuid.UUID:
         tid = uuid.uuid4()
         with Session(migrator_engine) as s, s.begin():
@@ -144,6 +153,19 @@ def make_tenant(migrator_engine: Engine) -> Callable[..., uuid.UUID]:
                         enabled=True,
                     )
                 )
+            if account is not None:  # connectors pointing at a mock-connectors account
+                for connector_id, system in (("mock-crm", "crm"), ("mock-docs", "docs")):
+                    s.add(
+                        ConnectorConfig(
+                            tenant_id=tid,
+                            connector_id=connector_id,
+                            display_name=system.upper(),
+                            kind="http_v1",
+                            base_url=f"http://mock/{account}/{system}",
+                            credential_ref="env:IDP_TEST_MOCK_CONNECTOR_TOKEN",
+                            enabled=True,
+                        )
+                    )
         return tid
 
     return _make
@@ -242,3 +264,32 @@ def bff(ip: str = "203.0.113.7", **extra: str) -> dict[str, str]:
 
 def bearer(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+# ---------- Mock connectors (in-process) ---------------------------------------------
+
+MOCK_TOKEN = "test-mock-connector-token"
+
+
+@pytest.fixture
+def mock_connectors(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    from mock_connectors.app import create_app as create_mock_app
+
+    monkeypatch.setenv("IDP_TEST_MOCK_CONNECTOR_TOKEN", MOCK_TOKEN)
+    return TestClient(
+        create_mock_app(token=MOCK_TOKEN, test_endpoints=True), base_url="http://mock"
+    )
+
+
+@pytest.fixture
+def connector_factory(mock_connectors: TestClient) -> Callable[[ConnectorConfig], Any]:
+    from idprivacy_connector_sdk import HttpConnector
+
+    from idprivacy.platform import secrets
+
+    def build(config: ConnectorConfig) -> Any:
+        return HttpConnector(
+            config.base_url, secrets.resolve(config.credential_ref), client=mock_connectors
+        )
+
+    return build

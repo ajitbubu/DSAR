@@ -5,6 +5,7 @@ requires-python = "==3.12.*"
 [manifest]
 members = [
     "idprivacy",
+    "idprivacy-connector-sdk",
     "idprivacy-mock-connectors",
     "idprivacy-worker",
     "idprivacy-workspace",
@@ -406,6 +407,7 @@ dependencies = [
     { name = "boto3" },
     { name = "cryptography" },
     { name = "fastapi" },
+    { name = "idprivacy-connector-sdk" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-settings" },
@@ -423,6 +425,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.35" },
     { name = "cryptography", specifier = ">=43" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "idprivacy-connector-sdk", editable = "packages/connector-sdk" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.8" },
     { name = "pydantic-settings", specifier = ">=2.4" },
@@ -435,17 +438,34 @@ requires-dist = [
 ]
 
 [[package]]
+name = "idprivacy-connector-sdk"
+version = "0.1.0"
+source = { editable = "packages/connector-sdk" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic", specifier = ">=2.8" },
+]
+
+[[package]]
 name = "idprivacy-mock-connectors"
 version = "0.1.0"
 source = { editable = "packages/mock-connectors" }
 dependencies = [
     { name = "fastapi" },
+    { name = "idprivacy-connector-sdk" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "idprivacy-connector-sdk", editable = "packages/connector-sdk" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
 

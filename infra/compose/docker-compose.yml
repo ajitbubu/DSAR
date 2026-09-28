@@ -17,6 +17,8 @@ x-python-env: &python-env
   IDP_S3_BUCKET: idprivacy-evidence
   IDP_S3_ACCESS_KEY_ID: idp-s3-dev            # matches seaweedfs/s3.json (dev only)
   IDP_S3_SECRET_ACCESS_KEY: dev-s3-secret
+  # Connector credential, resolved via credential_ref "env:IDP_CONNECTOR_TOKEN_MOCK" (D-5).
+  IDP_CONNECTOR_TOKEN_MOCK: ${MOCK_CONNECTOR_TOKEN:-dev-mock-connector-token-0123}
 
 services:
   postgres:
@@ -119,6 +121,9 @@ services:
 
   mock-connectors:
     build: { context: ../.., dockerfile: apps/api/Dockerfile, target: mock-connectors }
+    environment:
+      MOCK_CONNECTOR_TOKEN: ${MOCK_CONNECTOR_TOKEN:-dev-mock-connector-token-0123}
+      MOCK_TEST_ENDPOINTS: "true"
     ports: ["127.0.0.1:8100:8100"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/healthz')"]
@@ -132,8 +137,15 @@ services:
       APP_ORIGIN: http://localhost:3000
       BFF_SHARED_SECRET: ${IDP_BFF_SHARED_SECRET:-dev-bff-shared-secret-change-me-0123456789}
       DEV_SHOW_MOCK_OTP: "true"
+      OIDC_DISCOVERY_URL: http://keycloak:8080/realms/idprivacy
+      OIDC_CLIENT_ID: idprivacy-web
+      OIDC_CLIENT_SECRET: dev-web-client-secret   # matches the dev realm fixture
+      REDIS_URL: redis://redis:6379/1
     ports: ["127.0.0.1:3000:3000"]
-    depends_on: { api: { condition: service_healthy } }
+    depends_on:
+      api: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+      redis: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s

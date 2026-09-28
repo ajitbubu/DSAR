@@ -4,6 +4,9 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
+  // One shared stack with real rate limits: run serially, and each spec resets limits.
+  workers: 1,
+  fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
