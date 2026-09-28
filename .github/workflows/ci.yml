@@ -95,12 +95,7 @@ jobs:
       - run: pnpm test:e2e
         env:
           CI: "true"
-      - name: No requester PII in service logs
-        run: |
-          if docker compose -f infra/compose/docker-compose.yml logs api web worker outbox-relay \
-               | grep -Ei "e2e-[0-9]+@example\.in|E2E Requester|CUST-2002|priya|eyJhbGci"; then
-            echo "PII found in logs"; exit 1
-          fi
+      - run: make logscan
       - if: failure()
         run: docker compose -f infra/compose/docker-compose.yml logs --tail=200
       - if: failure()

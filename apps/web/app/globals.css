@@ -144,3 +144,10 @@ details.history ol { margin: 6px 0 0; padding-left: 18px; font-size: .8125rem; c
 .summary-bar { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
 .panel.legal-hold { margin-top: 24px; }
 .decision-toggle { display: block; margin-top: 8px; padding: 6px 12px; font-size: .875rem; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.tile .n { font-size: 1.75rem; font-weight: 700; line-height: 1.1; }
+.tile .l { color: var(--muted); font-size: .875rem; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.filters a { text-decoration: none; }
+pre.details { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: .75rem; color: var(--muted); }

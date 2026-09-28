@@ -6,7 +6,7 @@ A DPDP-first platform for automating Data Principal / Data Subject rights reques
 - Milestones and acceptance criteria: [`docs/milestones.md`](docs/milestones.md)
 - Open security and tenancy decisions: [`docs/open-decisions.md`](docs/open-decisions.md)
 
-**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) M3 (connector SDK, discovery, staff console) M4 (retention engine, legal holds, review) M5 (maker-checker approval) M6 (idempotent fulfilment) and M7 (verification, evidence) complete.
+**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) M3 (connector SDK, discovery, staff console) M4 (retention engine, legal holds, review) M5 (maker-checker approval) M6 (idempotent fulfilment) M7 (verification, evidence) and M8 (completion, closure, full E2E) complete.
 
 ## Layout
 
@@ -110,3 +110,12 @@ Every credential in this repo (`.env.example`, the Keycloak realm, `seaweedfs/s3
 - **Evidence package:** a deterministic ZIP with a manifest of per-file hashes, decisions and reasons, approvals, receipts and connector evidence, the verification report and a redacted audit timeline. It's stored privately in S3 under an opaque key, and the manifest hash is anchored in the audit chain. Downloads are streamed and audited, and return 404 across tenants.
 - **Uploads:** size, extension, MIME type and magic bytes must agree. The filename is discarded.
 - **Screens 10 and 11:** verification rounds with reconcile, the evidence package with hashes and download, and supporting-document upload.
+
+## What M8 provides
+
+- **Completion response:** after the evidence package, the worker composes a message with no personal data (counts per outcome and retention reasons from the pack's own labels), sends it through the notification boundary (a mock provider, refused outside local/test), records it once, and closes the case.
+- **Closure guard, twice:** the pack guard `all_fulfilment_tasks_terminal`, plus a `SECURITY DEFINER` trigger that rejects `status = CLOSED` while any task is open, even for the table owner.
+- **The requester's tracking page** shows "Your request is closed" with the completion response.
+- **Screen 4, the dashboard:** open, needs-analyst, awaiting-approval, overdue and deadline-not-validated counts, status filters, and an SLA state per case (`UNVALIDATED` while the pack's deadlines lack legal sign-off).
+- **Screen 12, the audit timeline:** every event for the case, with hash prefixes, plus "Verify hash chain" for auditors.
+- **`e2e/erasure-end-to-end.spec.ts`:** the whole vertical slice through the real stack. `make logscan` fails the build if seeded identifiers, tokens or dev passwords appear in any service log.

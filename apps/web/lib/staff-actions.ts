@@ -13,6 +13,7 @@ export const STAFF_MUTATIONS: readonly RegExp[] = [
   /^\/v1\/legal-holds$/,
   new RegExp(`^/v1/legal-holds/${UUID}/release$`),
   new RegExp(`^/v1/cases/${UUID}/reconcile$`),
+  /^\/v1\/audit\/verify$/,
 ];
 
 export const STAFF_DOWNLOAD = new RegExp(`^/v1/cases/${UUID}/evidence/${UUID}/content$`);

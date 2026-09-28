@@ -53,3 +53,19 @@ export function decisionTone(decision: string): string {
   if (decision === "RETAIN") return "status ok";
   return "status";
 }
+
+export const SLA_LABEL: Record<string, string> = {
+  UNVALIDATED: "Deadline not validated",
+  ON_TRACK: "On track",
+  DUE_SOON: "Due soon",
+  OVERDUE: "Overdue",
+  DONE: "Done",
+  NOT_APPLICABLE: "—",
+};
+
+export function slaTone(state: string): string {
+  if (state === "OVERDUE") return "status bad";
+  if (state === "DUE_SOON" || state === "UNVALIDATED") return "status warn";
+  if (state === "DONE" || state === "ON_TRACK") return "status ok";
+  return "status";
+}

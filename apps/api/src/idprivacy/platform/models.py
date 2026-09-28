@@ -612,3 +612,22 @@ class EvidenceArtifact(Base):
     created_by: Mapped[str] = mapped_column(String(128), nullable=False)
     retain_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # D-4
     created_at: Mapped[datetime] = _created_at()
+
+
+# ---------- M8: communications ---------------------------------------------------
+
+
+class Communication(Base):
+    """A message sent to the Data Principal. ``public_text`` holds no personal data."""
+
+    __tablename__ = "communication"
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    template_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    channel: Mapped[str] = mapped_column(String(16), nullable=False)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    public_text: Mapped[str] = mapped_column(Text, nullable=False)
+    body_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = _created_at()

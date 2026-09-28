@@ -5,6 +5,8 @@ export default defineConfig({
   testDir: "./e2e",
   // Specs wait on the real async pipeline (outbox → worker → connectors); leave headroom.
   timeout: 90_000,
+  // Server-rendered pages call the API; allow for a busy host rather than flaking.
+  expect: { timeout: 15_000 },
   // One shared stack with real rate limits: run serially, and each spec resets limits.
   workers: 1,
   fullyParallel: false,

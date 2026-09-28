@@ -63,12 +63,6 @@ def results(engine: Engine, rid: uuid.UUID, round_no: int = 1) -> dict[str, tupl
     return {r[0]: (r[1], r[2]) for r in rows}
 
 
-@pytest.fixture
-def fulfilled(client: TestClient, approved, connector_factory) -> dict[str, Any]:
-    run_all(client, approved["tenant"], approved["rid"], connector_factory)
-    return approved
-
-
 # ---------- Verification -------------------------------------------------------------
 
 
@@ -218,14 +212,6 @@ def test_verification_view_and_permissions(
 
 
 # ---------- Evidence package ----------------------------------------------------------
-
-
-@pytest.fixture
-def packaged(client: TestClient, fulfilled, connector_factory) -> dict[str, Any]:
-    verify(client, fulfilled["tenant"], fulfilled["rid"], connector_factory)
-    artifact = generate(client, fulfilled["tenant"], fulfilled["rid"])
-    assert artifact is not None
-    return {**fulfilled, "artifact": artifact}
 
 
 def _zip(client: TestClient, packaged: dict[str, Any]) -> tuple[Any, zipfile.ZipFile]:

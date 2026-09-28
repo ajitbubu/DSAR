@@ -7,7 +7,7 @@ case's details are audited.
 
 import base64
 import unicodedata
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from idprivacy.domain.approvals import service as approvals
 from idprivacy.domain.audit import service as audit
+from idprivacy.domain.audit.timeline import case_events
 from idprivacy.domain.cases.lifecycle import CaseStatus, InvalidTransition, StaleVersion
 from idprivacy.domain.discovery import service as discovery
 from idprivacy.domain.identity.masking import mask
@@ -56,6 +57,7 @@ class CaseSummary(BaseModel):
     due_at: datetime | None
     policy_pack: str | None
     workflow: str | None
+    sla_state: str = "NOT_APPLICABLE"
 
 
 class CasePage(BaseModel):
@@ -119,6 +121,7 @@ def _parse_cursor(raw: str) -> tuple[datetime, UUID]:
 
 
 def _summaries(db: Session, cases: list[PrivacyRequest]) -> list[CaseSummary]:
+    now = datetime.now(UTC)
     ids = [c.id for c in cases]
     rights: dict[UUID, list[str]] = {}
     for rid, code in db.execute(
@@ -138,6 +141,7 @@ def _summaries(db: Session, cases: list[PrivacyRequest]) -> list[CaseSummary]:
             due_at=c.due_at,
             policy_pack=packs.get(c.policy_pack_id) if c.policy_pack_id else None,
             workflow=c.workflow_code,
+            sla_state=sla_state(c, now),
         )
         for c in cases
     ]
@@ -508,3 +512,105 @@ def transition_case(
     if new_status == CaseStatus.PENDING_APPROVAL:
         approvals.record_submission(db, request=case, principal=principal)
     return TransitionResult(status=new_status, version=case.version)
+
+
+# ---------- Dashboard summary and audit timeline (M8; screens 4 and 12) ----------------
+
+SlaState = Literal["UNVALIDATED", "ON_TRACK", "DUE_SOON", "OVERDUE", "DONE", "NOT_APPLICABLE"]
+FINISHED = {
+    CaseStatus.CLOSED,
+    CaseStatus.CANCELLED,
+    CaseStatus.VERIFICATION_FAILED,
+    CaseStatus.RESPONDED,
+}
+
+
+def sla_state(case: PrivacyRequest, now: datetime) -> SlaState:
+    status_ = CaseStatus(case.status)
+    if status_ in FINISHED:
+        return "DONE"
+    if case.policy_pack_id is None:
+        return "NOT_APPLICABLE"
+    if case.due_at is None:
+        return "UNVALIDATED"  # the pack's response deadline isn't legally validated (D-9)
+    if now > case.due_at:
+        return "OVERDUE"
+    return "DUE_SOON" if (case.due_at - now).days < 3 else "ON_TRACK"
+
+
+class DashboardSummary(BaseModel):
+    by_status: dict[str, int]
+    by_sla: dict[str, int]
+    awaiting_approval: int
+    needs_attention: int
+
+
+dashboard_router = APIRouter(prefix="/v1/dashboard", tags=["cases"])
+
+
+@dashboard_router.get("/summary", response_model=DashboardSummary)
+def dashboard_summary(_p: Reader, db: Db) -> DashboardSummary:
+    now = datetime.now(UTC)
+    by_status: dict[str, int] = {}
+    by_sla: dict[str, int] = {}
+    for case in db.execute(select(PrivacyRequest)).scalars():
+        by_status[case.status] = by_status.get(case.status, 0) + 1
+        state = sla_state(case, now)
+        by_sla[state] = by_sla.get(state, 0) + 1
+    attention = sum(
+        by_status.get(s, 0)
+        for s in (
+            CaseStatus.RECONCILIATION_REQUIRED,
+            CaseStatus.PENDING_MANUAL_HANDLING,
+            CaseStatus.RETENTION_EVALUATED,
+            CaseStatus.REJECTED,
+        )
+    )
+    return DashboardSummary(
+        by_status=by_status,
+        by_sla=by_sla,
+        awaiting_approval=by_status.get(CaseStatus.PENDING_APPROVAL, 0),
+        needs_attention=attention,
+    )
+
+
+class AuditEventView(BaseModel):
+    seq: int
+    occurred_at: datetime
+    actor_type: str
+    actor_ref: str
+    action: str
+    object_type: str
+    object_id: UUID | None
+    details: dict[str, object]
+    hash: str
+
+
+@router.get("/{case_id}/audit-events", response_model=list[AuditEventView])
+def case_audit_events(case_id: UUID, principal: Reader, db: Db) -> list[AuditEventView]:
+    case = _load(db, case_id)
+    events = [
+        AuditEventView(
+            seq=e.seq,
+            occurred_at=e.occurred_at,
+            actor_type=e.actor_type,
+            actor_ref=e.actor_ref,
+            action=e.action,
+            object_type=e.object_type,
+            object_id=e.object_id,
+            details=e.details,
+            hash=e.hash,
+        )
+        for e in case_events(db, case.id)
+    ]
+    audit.append(
+        db,
+        tenant_id=case.tenant_id,
+        actor_type="USER",
+        actor_ref=str(principal.user_id),
+        action="case.viewed",
+        object_type="privacy_request",
+        object_id=case.id,
+        details={"view": "audit"},
+    )
+    return events

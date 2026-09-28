@@ -87,7 +87,7 @@ Rescan via `discover`, `verify_action`, reconciliation into `VerificationResult`
 - A download without the right role or from another tenant → 404. A successful download is audited.
 - Upload negatives: wrong magic bytes → 415, oversize → 413, disallowed extension → 415. The stored key never contains the original filename.
 
-## M8 — Communication, closure and E2E
+## M8 — Communication, closure and E2E ✅
 Completion response to the DP (mock channel), the closure guard, audit timeline UI and ops dashboard SLA indicators.
 
 **Acceptance**

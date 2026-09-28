@@ -19,23 +19,23 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from idprivacy.domain.audit import service as audit
+from idprivacy.domain.audit.timeline import case_events
 from idprivacy.domain.cases.lifecycle import CaseStatus
 from idprivacy.domain.identity.masking import mask
 from idprivacy.domain.identity.resolution import CTX_REQUEST_IDENTIFIER
 from idprivacy.domain.policy.registry import PolicyRegistry
 from idprivacy.domain.policy.workflow import SystemActor, fire
+from idprivacy.platform import outbox
 from idprivacy.platform.crypto import FieldCipher
 from idprivacy.platform.db import TenantContext, tenant_session
 from idprivacy.platform.models import (
     Approval,
     ApprovalSubmission,
-    AuditEvent,
     ConnectorConfig,
     ConnectorExecution,
     DataMatch,
     EvidenceArtifact,
     FulfilmentTask,
-    IdentityVerification,
     JurisdictionDecision,
     PrivacyRequest,
     RequestIdentifier,
@@ -92,19 +92,7 @@ def collect(session: Session, request: PrivacyRequest, cipher: FieldCipher) -> d
     decision = session.execute(
         select(JurisdictionDecision).where(JurisdictionDecision.request_id == rid)
     ).scalar_one_or_none()
-    challenge_ids = list(
-        session.execute(
-            select(IdentityVerification.id).where(IdentityVerification.request_id == rid)
-        ).scalars()
-    )
-    related = [rid, *matches, *[t.id for t in tasks], *challenge_ids]
-    events = (
-        session.execute(
-            select(AuditEvent).where(AuditEvent.object_id.in_(related)).order_by(AuditEvent.seq)
-        )
-        .scalars()
-        .all()
-    )
+    events = case_events(session, rid)
     identifiers = [
         {
             "type": r.type,
@@ -376,4 +364,10 @@ def generate(
             },
         )
         fire(s, request, "EVIDENCE_READY", actor=ACTOR, registry=registry)
+        outbox.enqueue(
+            s,
+            tenant_id=tenant_id,
+            topic="case.response_requested",
+            payload={"request_id": request_id},
+        )
     return artifact_id

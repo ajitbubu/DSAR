@@ -13,7 +13,6 @@ describe("isAllowedStaffMutation", () => {
   ])("allows %s", (p) => expect(isAllowedStaffMutation(p)).toBe(true));
 
   it.each([
-    "/v1/audit/verify",
     "/v1/admin/users",
     `/v1/cases/${ID}/transitions/../../admin`,
     `/v1/cases/${ID.toUpperCase()}/transitions`,

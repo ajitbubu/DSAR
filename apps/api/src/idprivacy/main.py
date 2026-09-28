@@ -117,6 +117,7 @@ def create_app(
     app.include_router(public.router)
     app.include_router(policy.router)
     app.include_router(cases.router)
+    app.include_router(cases.dashboard_router)
     app.include_router(legal_holds.router)
     app.include_router(approvals.router)
     app.include_router(fulfilment.router)

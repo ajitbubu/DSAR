@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 TEST_DB_ENV := IDP_REQUIRE_DB=1
 
-.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e test-connectors lint fmt typecheck contracts smoke policy-pin policy-schema
+.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e test-connectors lint fmt typecheck contracts smoke policy-pin policy-schema logscan
 
 help:  ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -60,6 +60,9 @@ policy-schema:  ## Regenerate the policy-pack JSON Schema
 
 contracts:  ## Regenerate contracts/openapi.json from the API
 	uv run python -m idprivacy.scripts.export_openapi contracts/openapi.json
+
+logscan:  ## Fail if seeded identifiers, tokens or passwords appear in any service log
+	./infra/compose/logscan.sh
 
 smoke:  ## End-to-end check against the running stack (Keycloak token -> API)
 	./infra/compose/smoke.sh

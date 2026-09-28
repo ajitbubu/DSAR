@@ -15,6 +15,7 @@ from idprivacy.domain.cases.lifecycle import (
     InvalidTransition,
     transition,
 )
+from idprivacy.domain.communications.service import completion_text
 from idprivacy.domain.identity import verification
 from idprivacy.domain.identity.verification import Outcome
 from idprivacy.domain.intake import service as intake
@@ -190,14 +191,14 @@ def _load_case(db: Session, principal: DataPrincipalPrincipal) -> PrivacyRequest
     return req
 
 
-def _public_view(req: PrivacyRequest) -> PublicCaseStatus:
+def _public_view(db: Session, req: PrivacyRequest) -> PublicCaseStatus:
     status_ = CaseStatus(req.status)
     return PublicCaseStatus(
         display_id=req.display_id,
         status=_PUBLIC_STATUS.get(status_, "In progress"),
         submitted_at=req.submitted_at,
         due_at=req.due_at,
-        completion_response=None,
+        completion_response=completion_text(db, req.id),
         can_cancel=status_ in CANCELLABLE,
     )
 
@@ -207,7 +208,7 @@ def get_case(request: Request, principal: DpPrincipal) -> PublicCaseStatus:
     state = request.app.state
     with tenant_session(state.app_engine, TenantContext(principal.tenant_id)) as db:
         dp_session.touch(db, principal.session_id, state.settings)
-        return _public_view(_load_case(db, principal))
+        return _public_view(db, _load_case(db, principal))
 
 
 @router.post("/case/cancel", response_model=PublicCaseStatus)
@@ -228,4 +229,4 @@ def cancel_case(request: Request, principal: DpPrincipal) -> PublicCaseStatus:
                 status.HTTP_409_CONFLICT, "Request can no longer be cancelled"
             ) from None
         req.closed_at = datetime.now(UTC)
-        return _public_view(req)
+        return _public_view(db, req)

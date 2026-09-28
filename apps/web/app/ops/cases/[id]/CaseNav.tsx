@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 type Tab = "overview" | "discovery" | "retention" | "approval" | "fulfilment" | "verification"
-  | "evidence";
+  | "evidence" | "audit";
 
 export function CaseNav({ id, current }: { id: string; current: Tab }) {
   const tabs = [
@@ -12,6 +12,7 @@ export function CaseNav({ id, current }: { id: string; current: Tab }) {
     { key: "fulfilment", label: "Fulfilment", href: `/ops/cases/${id}/fulfilment` },
     { key: "verification", label: "Verification", href: `/ops/cases/${id}/verification` },
     { key: "evidence", label: "Evidence", href: `/ops/cases/${id}/evidence` },
+    { key: "audit", label: "Audit", href: `/ops/cases/${id}/audit` },
   ] as const;
   return (
     <nav className="subnav" aria-label="Case sections">

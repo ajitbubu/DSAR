@@ -356,3 +356,21 @@ def approved(client: TestClient, pending) -> dict[str, Any]:  # type: ignore[no-
 
     assert decide(client, pending["rid"], pending["approver"]).status_code == 201
     return pending
+
+
+@pytest.fixture
+def fulfilled(client: TestClient, approved, connector_factory) -> dict[str, Any]:  # type: ignore[no-untyped-def]
+    from tests.test_fulfilment import run_all
+
+    run_all(client, approved["tenant"], approved["rid"], connector_factory)
+    return approved
+
+
+@pytest.fixture
+def packaged(client: TestClient, fulfilled, connector_factory) -> dict[str, Any]:  # type: ignore[no-untyped-def]
+    from tests.test_verification_evidence import generate, verify
+
+    verify(client, fulfilled["tenant"], fulfilled["rid"], connector_factory)
+    artifact = generate(client, fulfilled["tenant"], fulfilled["rid"])
+    assert artifact is not None
+    return {**fulfilled, "artifact": artifact}

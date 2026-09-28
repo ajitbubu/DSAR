@@ -4,6 +4,7 @@ from uuid import UUID
 
 import structlog
 
+from idprivacy.domain.communications import service as communications
 from idprivacy.domain.discovery import service as discovery
 from idprivacy.domain.discovery.connectors import build_connector
 from idprivacy.domain.evidence import package as evidence
@@ -25,6 +26,7 @@ TOPIC_TASKS: dict[str, str] = {
     "case.fulfilment_requested": "idprivacy_worker.tasks.run_fulfilment",
     "case.verification_requested": "idprivacy_worker.tasks.run_verification",
     "case.evidence_requested": "idprivacy_worker.tasks.generate_evidence",
+    "case.response_requested": "idprivacy_worker.tasks.respond_and_close",
 }
 
 
@@ -193,4 +195,31 @@ def generate_evidence(self: object, tenant_id: str, request_id: str) -> None:
         tenant_id=tenant_id,
         request_id=request_id,
         artifact_id=str(artifact) if artifact else "skipped",
+    )
+
+
+_notifier: communications.NotificationProvider | None = None
+
+
+@celery_app.task(
+    name="idprivacy_worker.tasks.respond_and_close",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    max_retries=5,
+)
+def respond_and_close(self: object, tenant_id: str, request_id: str) -> None:
+    global _notifier
+    svc = services()
+    _notifier = _notifier or communications.build_notifier(svc.settings)
+    with tenant_session(svc.engine, TenantContext(UUID(tenant_id))) as session:
+        closed = communications.respond_and_close(
+            session,
+            request_id=UUID(request_id),
+            registry=svc.registry,
+            cipher=svc.cipher,
+            notifier=_notifier,
+        )
+    log.info(
+        "case_closed" if closed else "respond_skipped", tenant_id=tenant_id, request_id=request_id
     )

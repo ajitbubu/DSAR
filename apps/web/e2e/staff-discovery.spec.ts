@@ -11,7 +11,7 @@ test("analyst signs in and sees source-wise discovery results (screen 6)", async
 
   const page = await browser.newPage();
   await staffLogin(page, "analyst@acme.example.test");
-  await expect(page.getByRole("heading", { name: "Cases" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Privacy operations" })).toBeVisible();
   await page.getByRole("link", { name: reference }).click();
   await page.waitForURL(/\/ops\/cases\/[0-9a-f-]+$/);
   // Identity resolution runs in the worker right after verification.

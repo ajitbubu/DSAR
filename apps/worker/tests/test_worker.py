@@ -58,3 +58,9 @@ def test_verification_and_evidence_topics_are_routed() -> None:
 
     for topic in ("case.verification_requested", "case.evidence_requested"):
         assert TOPIC_TASKS[topic] in celery_app.tasks
+
+
+def test_response_topic_is_routed() -> None:
+    from idprivacy_worker.tasks import TOPIC_TASKS
+
+    assert TOPIC_TASKS["case.response_requested"] in celery_app.tasks

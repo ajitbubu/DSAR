@@ -34,6 +34,7 @@ class Settings(BaseSettings):
 
     # Stand-in providers. Production choices are open decisions.
     otp_provider: Literal["mock"] = "mock"
+    notification_provider: Literal["mock"] = "mock"
     # Connector credentials are resolved by reference (open decision D-5).
     connector_credential_source: Literal["env"] = "env"
     key_provider: Literal["local"] = "local"
@@ -68,6 +69,8 @@ class Settings(BaseSettings):
         if self.env not in DEV_ENVIRONMENTS:
             if self.otp_provider == "mock":
                 errors.append("mock OTP provider is only permitted in local/test")
+            if self.notification_provider == "mock":
+                errors.append("mock notification provider is only permitted in local/test")
             if self.key_provider == "local":
                 errors.append("local key provider is only permitted in local/test")
             if self.connector_credential_source == "env":

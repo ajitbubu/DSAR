@@ -182,6 +182,69 @@
         "title": "ArtifactView",
         "type": "object"
       },
+      "AuditEventView": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_ref": {
+            "title": "Actor Ref",
+            "type": "string"
+          },
+          "actor_type": {
+            "title": "Actor Type",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "object_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Id"
+          },
+          "object_type": {
+            "title": "Object Type",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seq",
+          "occurred_at",
+          "actor_type",
+          "actor_ref",
+          "action",
+          "object_type",
+          "object_id",
+          "details",
+          "hash"
+        ],
+        "title": "AuditEventView",
+        "type": "object"
+      },
       "Body_upload_evidence_v1_cases__case_id__evidence_post": {
         "properties": {
           "file": {
@@ -253,6 +316,11 @@
             },
             "title": "Rights",
             "type": "array"
+          },
+          "sla_state": {
+            "default": "NOT_APPLICABLE",
+            "title": "Sla State",
+            "type": "string"
           },
           "status": {
             "$ref": "#/components/schemas/CaseStatus"
@@ -391,6 +459,11 @@
             "title": "Rights",
             "type": "array"
           },
+          "sla_state": {
+            "default": "NOT_APPLICABLE",
+            "title": "Sla State",
+            "type": "string"
+          },
           "status": {
             "$ref": "#/components/schemas/CaseStatus"
           },
@@ -477,6 +550,40 @@
           "value"
         ],
         "title": "Contact",
+        "type": "object"
+      },
+      "DashboardSummary": {
+        "properties": {
+          "awaiting_approval": {
+            "title": "Awaiting Approval",
+            "type": "integer"
+          },
+          "by_sla": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Sla",
+            "type": "object"
+          },
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Status",
+            "type": "object"
+          },
+          "needs_attention": {
+            "title": "Needs Attention",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "by_status",
+          "by_sla",
+          "awaiting_approval",
+          "needs_attention"
+        ],
+        "title": "DashboardSummary",
         "type": "object"
       },
       "DecisionView": {
@@ -2201,6 +2308,53 @@
         ]
       }
     },
+    "/v1/cases/{case_id}/audit-events": {
+      "get": {
+        "operationId": "case_audit_events_v1_cases__case_id__audit_events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEventView"
+                  },
+                  "title": "Response Case Audit Events V1 Cases  Case Id  Audit Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Case Audit Events",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
     "/v1/cases/{case_id}/discovery": {
       "get": {
         "operationId": "get_discovery_v1_cases__case_id__discovery_get",
@@ -2792,6 +2946,27 @@
         "tags": [
           "verification",
           "evidence"
+        ]
+      }
+    },
+    "/v1/dashboard/summary": {
+      "get": {
+        "operationId": "dashboard_summary_v1_dashboard_summary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Dashboard Summary",
+        "tags": [
+          "cases"
         ]
       }
     },

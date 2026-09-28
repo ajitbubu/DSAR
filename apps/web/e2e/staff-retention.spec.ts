@@ -54,7 +54,7 @@ test("auditors can read retention but not change it", async ({ page }) => {
 });
 
 test("staff proxy refuses non-allowlisted API paths", async ({ request }) => {
-  const res = await request.post("/api/staff/v1/audit/verify", {
+  const res = await request.post("/api/staff/v1/admin/users", {
     headers: { Origin: "http://localhost:3000", "Content-Type": "application/json" }, data: {},
   });
   expect(res.status()).toBe(404);

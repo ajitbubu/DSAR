@@ -28,7 +28,8 @@ test("verification passes and the evidence package downloads (screens 10–11)",
     await page.reload();
     await expect(page.getByRole("link", { name: "Download package" })).toBeVisible({ timeout: 1000 });
   }).toPass({ timeout: 60_000 });
-  await expect(page.getByText("Evidence ready")).toBeVisible();
+  // Since M8 the worker responds and closes straight after packaging.
+  await expect(page.locator("main p .status").first()).toHaveText(/Evidence ready|Requester notified|Closed/);
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),
