@@ -94,3 +94,32 @@ def test_missing_token_refuses_to_start(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.delenv("MOCK_CONNECTOR_TOKEN", raising=False)
     with pytest.raises(RuntimeError):
         create_app()
+
+
+def test_export_returns_record_content_for_the_right_account(client: TestClient) -> None:
+    from idprivacy_connector_sdk import ExportRequest
+
+    crm = HttpConnector("http://testserver/acme/crm", TOKEN, client=client)
+    assert crm.test_connection().descriptor.supports_export is True
+    bundle = crm.export_records(
+        ExportRequest(source_record_refs=["crm:contact:c-1001", "crm:contact:g-1001", "crm:nope:1"])
+    )
+    (record,) = bundle.records  # g-1001 belongs to another account; nope doesn't exist
+    fields = {f.name: f.value for f in record.fields}
+    assert fields["email"] == "priya.sharma@example.in" and fields["city"] == "Pune"
+
+
+def test_deleted_records_are_not_exported(client: TestClient) -> None:
+    from idprivacy_connector_sdk import Action, ActionRequest, ExportRequest, idempotency_key
+
+    crm = HttpConnector("http://testserver/acme/crm", TOKEN, client=client)
+    crm.execute_action(
+        ActionRequest(
+            idempotency_key=idempotency_key("x"),
+            action=Action.DELETE,
+            source_record_ref="crm:contact:c-3003",
+        )
+    )
+    assert (
+        crm.export_records(ExportRequest(source_record_refs=["crm:contact:c-3003"])).records == []
+    )

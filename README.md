@@ -129,3 +129,12 @@ Every credential in this repo (`.env.example`, the Keycloak realm, `seaweedfs/s3
 - **More hardening:** SQL-injection static rule and payload tests, credential-reference tests, security headers on all API responses, HSTS over https, and rate limits as validated settings.
 - **Scanning:** `make security` and a CI `security` job (pip-audit, pnpm audit, gitleaks with a documented, value-exact allowlist).
 - **Docs:** production deployment architecture, and a threat-model review with residual risks. Sign-off is pending a named owner.
+
+## Next: Right to Access (in progress)
+
+The plan is in [`docs/milestones-access.md`](docs/milestones-access.md). **A1 is done:**
+- The connector SDK has `export_records`: bounded, and it refuses records that weren't requested. The mocks implement it, and the conformance kit checks it.
+- `DPDP@1.1.0` makes ACCESS executable with an `access` workflow. 1.0.0 stays pinned for existing cases, and dev tenants now use 1.1.0.
+- After discovery, the next step is chosen by the pack: erasure workflows evaluate retention, and access workflows go straight to review.
+
+A2 (disclosure review and approval) and A3 (report delivery) are next. Until then, submitting an access case for approval fails closed.

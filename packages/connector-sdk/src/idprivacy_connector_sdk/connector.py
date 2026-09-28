@@ -6,6 +6,7 @@ http_v1 (JSON over HTTPS, bearer token):
   POST {base}/actions                  ActionRequest    -> ActionResult (idempotent by key)
   POST {base}/verify                   VerifyRequest    -> VerifyResult
   POST {base}/evidence                 EvidenceRequest  -> EvidenceBundle
+  POST {base}/export                   ExportRequest    -> ExportBundle (Right to Access)
 """
 
 import hashlib
@@ -15,6 +16,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from idprivacy_connector_sdk.models import (
+    MAX_EXPORT_RESPONSE_BYTES,
     ActionRequest,
     ActionResult,
     ConnectionStatus,
@@ -22,6 +24,8 @@ from idprivacy_connector_sdk.models import (
     DiscoveryRequest,
     EvidenceBundle,
     EvidenceRequest,
+    ExportBundle,
+    ExportRequest,
     VerifyRequest,
     VerifyResult,
 )
@@ -51,6 +55,9 @@ class Connector(Protocol):
 
     def get_evidence(self, request: EvidenceRequest) -> EvidenceBundle: ...
 
+    def export_records(self, request: ExportRequest) -> ExportBundle:
+        """Return content only for the requested records the system holds; omit the rest."""
+
 
 def idempotency_key(*parts: object) -> str:
     """Deterministic key for a destructive action, e.g. (tenant, task, action, decision)."""
@@ -72,7 +79,14 @@ class HttpConnector:
         self._headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
         self._client = client or httpx.Client(timeout=timeout_seconds, follow_redirects=False)
 
-    def _call(self, method: str, path: str, body: BaseModel | None, model: type[_T]) -> _T:
+    def _call(
+        self,
+        method: str,
+        path: str,
+        body: BaseModel | None,
+        model: type[_T],
+        max_bytes: int = MAX_RESPONSE_BYTES,
+    ) -> _T:
         try:
             headers = dict(self._headers)
             if body is not None:
@@ -90,7 +104,7 @@ class HttpConnector:
             raise ConnectorError(
                 "connector unreachable", retryable=True, code="unreachable"
             ) from exc
-        if len(response.content) > MAX_RESPONSE_BYTES:
+        if len(response.content) > max_bytes:
             raise ConnectorError(
                 "connector response too large", retryable=False, code="response_too_large"
             )
@@ -138,3 +152,16 @@ class HttpConnector:
 
     def get_evidence(self, request: EvidenceRequest) -> EvidenceBundle:
         return self._call("POST", "/evidence", request, EvidenceBundle)
+
+    def export_records(self, request: ExportRequest) -> ExportBundle:
+        bundle = self._call(
+            "POST", "/export", request, ExportBundle, max_bytes=MAX_EXPORT_RESPONSE_BYTES
+        )
+        requested = set(request.source_record_refs)
+        if any(r.source_record_ref not in requested for r in bundle.records):
+            raise ConnectorError(
+                "connector exported records that weren't requested",
+                retryable=False,
+                code="unrequested_records",
+            )
+        return bundle

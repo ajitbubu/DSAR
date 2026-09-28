@@ -13,6 +13,10 @@ from idprivacy_connector_sdk import (
     DiscoveryRequest,
     EvidenceBundle,
     EvidenceRequest,
+    ExportBundle,
+    ExportedField,
+    ExportedRecord,
+    ExportRequest,
     Identifier,
     IdentifierType,
     Match,
@@ -90,3 +94,41 @@ def test_kit_flags_a_non_idempotent_connector() -> None:
         "check_new_key_on_absent_record",
         "check_evidence_matches_receipt",
     } <= set(failures)
+
+
+class OverSharingExporter(NonIdempotentConnector):
+    """Supports export, but returns records nobody asked for."""
+
+    def test_connection(self) -> ConnectionStatus:
+        base = super().test_connection().descriptor
+        return ConnectionStatus(
+            ok=True, descriptor=base.model_copy(update={"supports_export": True})
+        )
+
+    def export_records(self, request: ExportRequest) -> ExportBundle:
+        extra = [*request.source_record_refs, "someone:else:1"]
+        return ExportBundle(
+            records=[
+                ExportedRecord(
+                    source_record_ref=r,
+                    record_type="x.y",
+                    fields=[
+                        ExportedField(
+                            name="email", label="Email", category="contact", value="x@example.in"
+                        )
+                    ],
+                )
+                for r in extra
+            ]
+        )
+
+
+def test_kit_flags_an_exporter_that_overshares() -> None:
+    target = ConformanceTarget(
+        connector=OverSharingExporter(),
+        matching=[Identifier(type=IdentifierType.EMAIL, value="a@example.in")],
+        non_matching=[Identifier(type=IdentifierType.EMAIL, value="nobody@example.in")],
+        disposable_refs=["r:0", "r:1", "r:2"],
+    )
+    failures = ConformanceKit(target).run_all()
+    assert "weren't requested" in failures["check_export_returns_only_requested_records"]

@@ -125,3 +125,23 @@ def test_action_result_must_echo_the_request() -> None:
 def test_idempotency_key_is_deterministic() -> None:
     assert idempotency_key("a", 1) == idempotency_key("a", 1) != idempotency_key("a", 2)
     assert len(idempotency_key("x")) == 64
+
+
+def test_http_adapter_refuses_unrequested_exports() -> None:
+    from idprivacy_connector_sdk import ExportRequest
+
+    body = {
+        "records": [{"source_record_ref": "crm:other", "record_type": "crm.contact", "fields": []}]
+    }
+    c = _connector(lambda _r: httpx.Response(200, json=body))
+    with pytest.raises(ConnectorError, match="weren't requested"):
+        c.export_records(ExportRequest(source_record_refs=["crm:1"]))
+
+
+def test_export_value_limits() -> None:
+    from idprivacy_connector_sdk import ExportedField
+
+    with pytest.raises(ValidationError):
+        ExportedField(name="note", label="Note", category="contact", value="x" * 2001)
+    with pytest.raises(ValidationError):
+        ExportedField(name="Bad Name", label="Note", category="contact", value="x")

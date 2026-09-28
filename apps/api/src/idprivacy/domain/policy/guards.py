@@ -1,7 +1,8 @@
 """Named workflow guards referenced by policy packs (ADR-0005).
 
 Packs stay declarative: they name guards, and the platform implements them. A pack
-naming an unknown guard is rejected when it loads.
+naming an unknown guard is rejected when it loads. A guard that exists but isn't built
+yet fails closed, so its transition is refused.
 """
 
 from collections.abc import Callable
@@ -44,8 +45,20 @@ def _all_fulfilment_tasks_terminal(session: Session, request: PrivacyRequest) ->
     return GuardResult(True) if done else GuardResult(False, f"{open_} task(s) still running")
 
 
+def _not_implemented_yet(milestone: str) -> Guard:
+    """For guards a published pack names before the platform implements them: fail closed."""
+
+    def guard(_session: Session, _request: PrivacyRequest) -> GuardResult:
+        return GuardResult(False, f"not available until {milestone}")
+
+    return guard
+
+
 GUARDS: dict[str, Guard] = {
     "no_unresolved_manual_review": _no_unresolved_manual_review,
     "approval_valid_for_version": _approval_valid_for_version,
     "all_fulfilment_tasks_terminal": _all_fulfilment_tasks_terminal,
+    # Right to Access (docs/milestones-access.md).
+    "disclosure_reviewed": _not_implemented_yet("access milestone A2"),
+    "access_report_stored": _not_implemented_yet("access milestone A3"),
 }

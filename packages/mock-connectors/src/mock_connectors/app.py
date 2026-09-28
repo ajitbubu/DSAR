@@ -32,6 +32,10 @@ from idprivacy_connector_sdk.models import (
     DiscoveryRequest,
     EvidenceBundle,
     EvidenceRequest,
+    ExportBundle,
+    ExportedField,
+    ExportedRecord,
+    ExportRequest,
     Match,
     VerifyRequest,
     VerifyResult,
@@ -46,6 +50,7 @@ DESCRIPTORS = {
         record_types=["crm.contact", "crm.invoice", "crm.ticket"],
         supported_actions=list(Action),
         idempotency_retention_days=365,
+        supports_export=True,
     ),
     "docs": ConnectorDescriptor(
         connector_id="mock-docs",
@@ -53,7 +58,13 @@ DESCRIPTORS = {
         record_types=["docs.file"],
         supported_actions=[Action.DELETE, Action.RESTRICT],
         idempotency_retention_days=365,
+        supports_export=True,
     ),
+}
+IDENTIFIER_FIELDS = {
+    "EMAIL": ("email", "Email address"),
+    "PHONE": ("phone", "Phone number"),
+    "CUSTOMER_ID": ("customer_id", "Customer ID"),
 }
 
 
@@ -311,6 +322,43 @@ def create_app(
         if found is None:
             raise HTTPException(404, "unknown receipt")
         return found
+
+    @app.post("/{account}/{system}/export", dependencies=[Auth])
+    def export(account: str, system: System, body: ExportRequest) -> ExportBundle:
+        sys_state = state.system(account, system)
+        record_call(account, system, "export", count=len(body.source_record_refs))
+        maybe_fail(account, system)
+        records = []
+        with sys_state.lock:
+            for ref in dict.fromkeys(body.source_record_refs):  # de-duplicate, keep order
+                rec = sys_state.records.get(ref)
+                if rec is None or rec["state"] == "ABSENT":
+                    continue
+                fields = [
+                    ExportedField(
+                        name=IDENTIFIER_FIELDS[t][0],
+                        label=IDENTIFIER_FIELDS[t][1],
+                        category="contact",
+                        value=v,
+                    )
+                    for t, values in sorted(rec["identifiers"].items())
+                    for v in values
+                ]
+                fields += [
+                    ExportedField(
+                        name=k,
+                        label=k.replace("_", " ").capitalize(),
+                        category=rec["categories"][0],
+                        value=v,
+                    )
+                    for k, v in sorted(rec["content"].items())
+                ]
+                records.append(
+                    ExportedRecord(
+                        source_record_ref=ref, record_type=rec["record_type"], fields=fields
+                    )
+                )
+        return ExportBundle(records=records)
 
     if test_endpoints:
 

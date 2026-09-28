@@ -21,6 +21,7 @@ from idprivacy_connector_sdk.models import (
     ActionRequest,
     DiscoveryRequest,
     EvidenceRequest,
+    ExportRequest,
     Identifier,
     IdentifierType,
     VerifyRequest,
@@ -84,6 +85,32 @@ class ConformanceKit:
         fa = {m.source_record_ref: m.content_fingerprint for m in a.matches}
         fb = {m.source_record_ref: m.content_fingerprint for m in b.matches}
         assert fa == fb, "content fingerprints changed without the record changing"
+
+    # -- export (Right to Access) -------------------------------------------------------
+
+    def _exports(self) -> bool:
+        return self.c.test_connection().descriptor.supports_export
+
+    def check_export_returns_only_requested_records(self) -> None:
+        if not self._exports():
+            return
+        page = self.c.discover(DiscoveryRequest(identifiers=self.t.matching, page_size=100))
+        refs = [m.source_record_ref for m in page.matches]
+        bundle = self.c.export_records(
+            ExportRequest(source_record_refs=[*refs, "unknown:record:does-not-exist"])
+        )
+        got = [r.source_record_ref for r in bundle.records]
+        assert set(got) <= set(refs), "export returned records that weren't requested"
+        assert set(got) == set(refs), "export omitted records that discovery found"
+        assert len(got) == len(set(got)), "export returned duplicates"
+        assert all(r.fields for r in bundle.records), "exported records have no fields"
+
+    def check_export_rejects_oversized_requests(self) -> None:
+        if self.t.raw_post is None or not self._exports():
+            return
+        body = {"source_record_refs": [f"r:{i}" for i in range(51)]}
+        code = self.t.raw_post("/export", body, True)
+        assert 400 <= code < 500, f"/export accepted 51 records ({code})"
 
     # -- idempotent actions --------------------------------------------------------------
 
@@ -185,6 +212,8 @@ class ConformanceKit:
         "check_pagination_is_complete_and_stable",
         "check_non_matching_identifiers_find_nothing",
         "check_fingerprints_are_stable",
+        "check_export_returns_only_requested_records",
+        "check_export_rejects_oversized_requests",
         "check_duplicate_key_replay",
         "check_concurrent_same_key_applies_once",
         "check_new_key_on_absent_record",

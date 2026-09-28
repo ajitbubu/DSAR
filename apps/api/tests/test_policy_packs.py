@@ -35,7 +35,7 @@ def dpdp() -> dict[str, Any]:
 
 
 def test_dpdp_pack_loads_and_matches_manifest_pin() -> None:
-    (loaded,) = [p for p in load_all(POLICY_PACKS) if p.pack.code == "DPDP"]
+    (loaded,) = [p for p in load_all(POLICY_PACKS) if p.pack.ref == "DPDP@1.0.0"]
     assert loaded.pack.ref == "DPDP@1.0.0"
     assert loaded.pack.legal_review == "PENDING"
 
@@ -133,7 +133,7 @@ def test_duplicate_transition_is_rejected(dpdp) -> None:
 def test_republishing_a_version_with_different_content_is_refused(
     migrator_engine: Engine, dpdp
 ) -> None:
-    (loaded,) = [p for p in load_all(POLICY_PACKS) if p.pack.code == "DPDP"]
+    (loaded,) = [p for p in load_all(POLICY_PACKS) if p.pack.ref == "DPDP@1.0.0"]
     with Session(migrator_engine) as s, s.begin():
         assert publish(s, loaded).content_sha256 == loaded.sha256  # idempotent re-publish
     altered_content = _mutate(dpdp, "title", "Something else")
@@ -171,7 +171,8 @@ def test_registry_detects_tampered_db_row(migrator_engine: Engine, app_engine: E
         conn.execute(
             text(
                 "UPDATE policy_pack SET content = jsonb_set(content, "
-                "'{rights,ACCESS,executable}', 'true') WHERE code = 'DPDP'"
+                "'{rights,ACCESS,executable}', 'true') "
+                "WHERE code = 'DPDP' AND version = '1.0.0'"
             )
         )
         conn.execute(text("ALTER TABLE policy_pack ENABLE TRIGGER policy_pack_immutable"))
@@ -185,7 +186,8 @@ def test_registry_detects_tampered_db_row(migrator_engine: Engine, app_engine: E
             conn.execute(
                 text(
                     "UPDATE policy_pack SET content = jsonb_set(content, "
-                    "'{rights,ACCESS,executable}', 'false') WHERE code = 'DPDP'"
+                    "'{rights,ACCESS,executable}', 'false') "
+                    "WHERE code = 'DPDP' AND version = '1.0.0'"
                 )
             )
             conn.execute(text("ALTER TABLE policy_pack ENABLE TRIGGER policy_pack_immutable"))
@@ -202,9 +204,11 @@ def test_catalogue_endpoint(client: TestClient, make_tenant, provision_user, mak
     _, subject = provision_user(make_tenant(), ["PRIVACY_ANALYST"])
     r = client.get("/v1/policy-packs", headers=bearer(make_token(subject)))
     assert r.status_code == 200
-    (dpdp,) = [p for p in r.json() if p["code"] == "DPDP"]
-    assert dpdp["version"] == "1.0.0" and len(dpdp["sha256"]) == 64
-    assert {x["code"] for x in dpdp["rights"] if x["executable"]} == {"ERASURE"}
+    packs = {p["version"]: p for p in r.json() if p["code"] == "DPDP"}
+    assert set(packs) >= {"1.0.0", "1.1.0"} and len(packs["1.0.0"]["sha256"]) == 64
+    assert {x["code"] for x in packs["1.0.0"]["rights"] if x["executable"]} == {"ERASURE"}
+    assert {x["code"] for x in packs["1.1.0"]["rights"] if x["executable"]} == {"ERASURE", "ACCESS"}
+    dpdp = packs["1.0.0"]
     assert all(x["sla_validated"] is False for x in dpdp["rights"])
 
 

@@ -10,10 +10,8 @@ from idprivacy.domain.discovery.connectors import build_connector
 from idprivacy.domain.evidence import package as evidence
 from idprivacy.domain.fulfilment import service as fulfilment
 from idprivacy.domain.intake.pipeline import process_verified_case as run_pipeline
-from idprivacy.domain.retention import service as retention
 from idprivacy.domain.verification import service as verification
 from idprivacy.platform.db import TenantContext, tenant_session
-from idprivacy.platform.models import PrivacyRequest
 from idprivacy.runtime import services
 from idprivacy_worker.celery_app import celery_app
 
@@ -101,12 +99,8 @@ def run_discovery(self: object, tenant_id: str, request_id: str) -> None:
             discovery.retry_failed(session, request_id=rid)
         raise RetryableConnectorFailure(request_id)
     with tenant_session(svc.engine, TenantContext(tid)) as session:
-        # Same transaction: a case can't be left in DISCOVERY_COMPLETE without decisions.
-        done = discovery.finish_if_complete(session, request_id=rid, registry=svc.registry)
-        if done:
-            case = session.get(PrivacyRequest, rid)
-            assert case is not None
-            retention.evaluate_case(session, request=case, registry=svc.registry)
+        # Same transaction: a case can't be left between discovery and its next step.
+        done = discovery.after_discovery(session, request_id=rid, registry=svc.registry)
     log.info("discovery_run_finished", tenant_id=tenant_id, request_id=request_id, complete=done)
 
 

@@ -5,6 +5,12 @@
       "version": "1.0.0",
       "path": "dpdp/1.0.0/pack.yaml",
       "sha256": "426a807e935eff219f8fc3d4ab123e88b8c5b2ed38f8a939e5f290f2c380c607"
+    },
+    {
+      "code": "DPDP",
+      "version": "1.1.0",
+      "path": "dpdp/1.1.0/pack.yaml",
+      "sha256": "b9c7508d6e71e892bcc48068cb89808b5c8289ff1e80955f08b8c61232db8143"
     }
   ]
 }

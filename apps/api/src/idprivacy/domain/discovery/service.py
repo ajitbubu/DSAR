@@ -268,3 +268,22 @@ def retry_failed(session: Session, *, request_id: UUID) -> int:
     for job in jobs:
         job.status, job.error_code = "PENDING", None
     return len(jobs)
+
+
+def after_discovery(session: Session, *, request_id: UUID, registry: PolicyRegistry) -> str | None:
+    """Finish discovery, then run the next step only if the pinned workflow defines one.
+
+    Erasure-style workflows define RETENTION_EVALUATED after DISCOVERY_COMPLETE; others
+    (e.g. access) go straight to analyst review. The pack decides, not this code.
+    """
+    from idprivacy.domain.policy.workflow import target_of
+    from idprivacy.domain.retention import service as retention
+
+    if not finish_if_complete(session, request_id=request_id, registry=registry):
+        return None
+    request = session.get(PrivacyRequest, request_id)
+    assert request is not None
+    if target_of(session, request, "RETENTION_EVALUATED", registry) is not None:
+        retention.evaluate_case(session, request=request, registry=registry)
+        return "RETENTION_EVALUATED"
+    return "DISCOVERY_COMPLETE"

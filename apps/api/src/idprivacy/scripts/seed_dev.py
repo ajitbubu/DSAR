@@ -74,7 +74,7 @@ USERS = {
 ROLE_CODES = ("TENANT_ADMIN", "PRIVACY_ANALYST", "APPROVER", "AUDITOR")
 # Both dev tenants process data in India and enable the DPDP pack.
 DEV_REGION = "IN"
-DEV_PACKS = [("DPDP", "1.0.0")]
+DEV_PACKS = [("DPDP", "1.1.0")]  # new cases use the latest; old ones stay pinned
 MOCK_BASE = os.environ.get("IDP_MOCK_CONNECTORS_URL", "http://mock-connectors:8100")
 DEV_CONNECTORS = [("mock-crm", "CRM (mock)", "crm"), ("mock-docs", "Document store (mock)", "docs")]
 
@@ -88,7 +88,8 @@ def seed(session: Session, cipher: FieldCipher) -> None:
         tenant.data_region = DEV_REGION
         session.flush()
         for priority, (code, version) in enumerate(DEV_PACKS):
-            if session.get(TenantPolicyPack, (tenant_id, code)) is None:
+            enabled = session.get(TenantPolicyPack, (tenant_id, code))
+            if enabled is None:
                 session.add(
                     TenantPolicyPack(
                         tenant_id=tenant_id,
@@ -98,6 +99,8 @@ def seed(session: Session, cipher: FieldCipher) -> None:
                         enabled=True,
                     )
                 )
+            else:
+                enabled.pack_version = version
         for connector_id, display, system in DEV_CONNECTORS:
             exists = session.execute(
                 select(ConnectorConfig).where(

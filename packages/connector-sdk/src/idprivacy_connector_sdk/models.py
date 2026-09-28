@@ -55,6 +55,7 @@ class ConnectorDescriptor(_Wire):
     record_types: Annotated[list[RecordType], Field(min_length=1, max_length=50)]
     supported_actions: Annotated[list[Action], Field(min_length=1)]
     idempotency_retention_days: Annotated[int, Field(ge=1, le=3650)]
+    supports_export: bool = False
 
 
 class ConnectionStatus(_Wire):
@@ -131,3 +132,38 @@ class EvidenceBundle(_Wire):
     applied_at: datetime
     system_statement: Annotated[str, StringConstraints(max_length=500)]
     sha256: Sha256
+
+
+# ---------- Export (Right to Access) --------------------------------------------------
+
+MAX_EXPORT_RECORDS = 50
+MAX_EXPORT_FIELDS = 200
+MAX_EXPORT_RESPONSE_BYTES = 2 * 1024 * 1024
+
+FieldName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_.]{0,63}$")]
+FieldValue = bool | int | Annotated[str, StringConstraints(max_length=2000)] | None
+
+
+class ExportRequest(_Wire):
+    source_record_refs: Annotated[
+        list[RecordRef], Field(min_length=1, max_length=MAX_EXPORT_RECORDS)
+    ]
+
+
+class ExportedField(_Wire):
+    """One field of a record as the source system holds it. This *is* personal data."""
+
+    name: FieldName
+    label: Annotated[str, StringConstraints(min_length=1, max_length=100)]
+    category: Category
+    value: FieldValue
+
+
+class ExportedRecord(_Wire):
+    source_record_ref: RecordRef
+    record_type: RecordType
+    fields: Annotated[list[ExportedField], Field(max_length=MAX_EXPORT_FIELDS)]
+
+
+class ExportBundle(_Wire):
+    records: Annotated[list[ExportedRecord], Field(max_length=MAX_EXPORT_RECORDS)]
