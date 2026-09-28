@@ -463,3 +463,53 @@ class RetentionDecision(Base):
     decided_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     supersedes_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = _created_at()
+
+
+# ---------- M5: maker-checker approval ------------------------------------------------
+
+
+class ApprovalSubmission(Base):
+    """Recorded when a case enters PENDING_APPROVAL: who submitted which decision set."""
+
+    __tablename__ = "approval_submission"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_approval_submission_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "request_id"],
+            ["privacy_request.tenant_id", "privacy_request.id"],
+            name="fk_approval_submission_request",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    submitted_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    case_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    decision_set_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class Approval(Base):
+    __tablename__ = "approval"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "idempotency_key", name="uq_approval_idempotency_key"),
+        UniqueConstraint("tenant_id", "id", name="uq_approval_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "submission_id"],
+            ["approval_submission.tenant_id", "approval_submission.id"],
+            name="fk_approval_submission",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    submission_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    case_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    decision_set_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    submitted_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    approved_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(16), nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    response: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = _created_at()

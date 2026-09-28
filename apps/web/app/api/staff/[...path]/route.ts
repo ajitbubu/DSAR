@@ -12,10 +12,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ path: string[]
   if (guarded instanceof Response) return guarded;
   const session = await getStaffSession();
   if (!session) return problem(401, "Not authenticated");
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  const key = req.headers.get("idempotency-key");
+  if (key && /^[A-Za-z0-9_-]{16,128}$/.test(key)) headers["Idempotency-Key"] = key;
   const res = await fetch(`${serverConfig.apiBaseUrl}${target}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json",
-               Accept: "application/json" },
+    headers,
     body: JSON.stringify(guarded.body ?? {}),
     cache: "no-store",
   });

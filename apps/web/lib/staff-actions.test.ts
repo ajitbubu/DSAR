@@ -9,6 +9,7 @@ describe("isAllowedStaffMutation", () => {
     `/v1/cases/${ID}/matches/${ID}/retention-decisions`,
     "/v1/legal-holds",
     `/v1/legal-holds/${ID}/release`,
+    `/v1/cases/${ID}/approvals`,
   ])("allows %s", (p) => expect(isAllowedStaffMutation(p)).toBe(true));
 
   it.each([

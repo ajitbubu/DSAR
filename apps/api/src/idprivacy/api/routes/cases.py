@@ -16,12 +16,13 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
+from idprivacy.domain.approvals import service as approvals
 from idprivacy.domain.audit import service as audit
 from idprivacy.domain.cases.lifecycle import CaseStatus, InvalidTransition, StaleVersion
 from idprivacy.domain.discovery import service as discovery
 from idprivacy.domain.identity.resolution import CTX_REQUEST_IDENTIFIER
 from idprivacy.domain.policy.model import RetentionDecisionCode
-from idprivacy.domain.policy.workflow import GuardFailed, TransitionForbidden, fire
+from idprivacy.domain.policy.workflow import GuardFailed, TransitionForbidden, fire, target_of
 from idprivacy.domain.retention import service as retention
 from idprivacy.platform import outbox
 from idprivacy.platform.auth.deps import Requires, get_tenant_db
@@ -359,6 +360,7 @@ class RetentionView(BaseModel):
     items: list[RetentionItem]
     exception_codes: list[ExceptionCodeView]
     decisions_allowed: list[str]
+    decision_set_sha256: str
 
 
 def _decision_view(d: RetentionDecision) -> DecisionView:
@@ -424,6 +426,7 @@ def get_retention(case_id: UUID, principal: Reader, db: Db, request: Request) ->
         items=items,
         exception_codes=codes,
         decisions_allowed=[d.value for d in RetentionDecisionCode],
+        decision_set_sha256=approvals.decision_set_hash(db, case.id),
     )
 
 
@@ -498,14 +501,18 @@ def transition_case(
         raise _NOT_FOUND
     if case.version != body.expected_version:
         raise HTTPException(status.HTTP_409_CONFLICT, "Case changed; reload")
+    registry = request.app.state.services.registry
+    if target_of(db, case, body.event, registry) in (CaseStatus.APPROVED, CaseStatus.REJECTED):
+        # Approval decisions must go through the maker-checker endpoint.
+        raise HTTPException(status.HTTP_409_CONFLICT, "Use the approvals endpoint")
     try:
-        new_status = fire(
-            db, case, body.event, actor=principal, registry=request.app.state.services.registry
-        )
+        new_status = fire(db, case, body.event, actor=principal, registry=registry)
     except TransitionForbidden:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden") from None
     except GuardFailed as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, exc.reason) from None
     except (InvalidTransition, StaleVersion):
         raise HTTPException(status.HTTP_409_CONFLICT, "Transition not allowed now") from None
+    if new_status == CaseStatus.PENDING_APPROVAL:
+        approvals.record_submission(db, request=case, principal=principal)
     return TransitionResult(status=new_status, version=case.version)

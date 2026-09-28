@@ -35,6 +35,17 @@ class GuardFailed(Exception):
         self.reason = reason
 
 
+def target_of(
+    session: Session, request: PrivacyRequest, event: str, registry: PolicyRegistry
+) -> CaseStatus | None:
+    """Where ``event`` would take the case now, or None if it isn't allowed."""
+    if request.policy_pack_id is None or request.workflow_code is None:
+        return None
+    pack = registry.by_id(session, request.policy_pack_id).pack
+    transition = pack.workflows[request.workflow_code].find(event, CaseStatus(request.status))
+    return transition.to if transition else None
+
+
 def fire(
     session: Session, request: PrivacyRequest, event: str, *, actor: Actor, registry: PolicyRegistry
 ) -> CaseStatus:

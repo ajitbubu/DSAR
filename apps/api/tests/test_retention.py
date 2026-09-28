@@ -32,15 +32,6 @@ def evaluate_case(client: TestClient, tenant: uuid.UUID, rid: uuid.UUID) -> dict
         return retention.evaluate_case(s, request=case, registry=PolicyRegistry())
 
 
-@pytest.fixture
-def evaluated(client: TestClient, make_tenant, connector_factory) -> tuple[uuid.UUID, uuid.UUID]:
-    tenant = make_tenant()
-    rid = case_ready_for_discovery(client, tenant)
-    discover_all(client, tenant, rid, connector_factory)
-    evaluate_case(client, tenant, rid)
-    return tenant, rid
-
-
 def current(engine: Engine, rid: uuid.UUID) -> dict[str, tuple[str, str, str | None]]:
     with engine.connect() as conn:
         rows = conn.execute(

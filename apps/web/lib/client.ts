@@ -18,11 +18,12 @@ export function useCsrfToken(): string | null {
   return token;
 }
 
-export async function postJson(url: string, csrf: string, body?: unknown): Promise<Response> {
+export async function postJson(url: string, csrf: string, body?: unknown,
+                               extraHeaders: Record<string, string> = {}): Promise<Response> {
   return fetch(url, {
     method: "POST",
     credentials: "same-origin",
-    headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf, ...extraHeaders },
     body: JSON.stringify(body ?? {}),
   });
 }

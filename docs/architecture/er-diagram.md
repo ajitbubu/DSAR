@@ -30,6 +30,8 @@ erDiagram
   DATA_MATCH ||--o{ RETENTION_DECISION : "decided by (latest effective)"
   LEGAL_HOLD }o--o{ DATA_MATCH : "may constrain"
   TENANT ||--o{ LEGAL_HOLD : has
+  PRIVACY_REQUEST ||--o{ APPROVAL_SUBMISSION : "submitted as"
+  APPROVAL_SUBMISSION ||--o| APPROVAL : "decided by (one per submission)"
   PRIVACY_REQUEST ||--o{ APPROVAL : requires
   APPROVAL }o--|| USER : "approved by"
   PRIVACY_REQUEST ||--o{ FULFILMENT_TASK : executes
@@ -212,10 +214,20 @@ erDiagram
     timestamptz released_at
     uuid released_by FK
   }
+  APPROVAL_SUBMISSION {
+    uuid id PK
+    uuid tenant_id FK
+    uuid request_id FK
+    uuid submitted_by FK "maker"
+    int case_version
+    string decision_set_sha256
+  }
   APPROVAL {
     uuid id PK
     uuid tenant_id FK
     uuid request_id FK
+    uuid submission_id FK "UK"
+    string idempotency_key "UK per tenant; response replayed verbatim"
     int case_version "binds approval to reviewed state"
     string decision_set_sha256 "hash of decisions approved"
     uuid submitted_by FK "maker"

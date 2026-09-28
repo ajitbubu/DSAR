@@ -24,6 +24,107 @@
         "title": "AdditionalIdentifier",
         "type": "object"
       },
+      "ApprovalBody": {
+        "additionalProperties": false,
+        "properties": {
+          "case_version": {
+            "minimum": 1.0,
+            "title": "Case Version",
+            "type": "integer"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "decision_set_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Decision Set Sha256",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "APPROVED",
+              "REJECTED"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "case_version",
+          "decision_set_sha256"
+        ],
+        "title": "ApprovalBody",
+        "type": "object"
+      },
+      "ApprovalView": {
+        "properties": {
+          "approved_by": {
+            "format": "uuid",
+            "title": "Approved By",
+            "type": "string"
+          },
+          "case_version": {
+            "title": "Case Version",
+            "type": "integer"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision_set_sha256": {
+            "title": "Decision Set Sha256",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "submitted_by": {
+            "format": "uuid",
+            "title": "Submitted By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "outcome",
+          "case_version",
+          "decision_set_sha256",
+          "submitted_by",
+          "approved_by",
+          "comment",
+          "created_at"
+        ],
+        "title": "ApprovalView",
+        "type": "object"
+      },
       "CaseDetail": {
         "properties": {
           "display_id": {
@@ -1030,6 +1131,52 @@
         "title": "PublicCaseStatus",
         "type": "object"
       },
+      "QueueItem": {
+        "properties": {
+          "case_version": {
+            "title": "Case Version",
+            "type": "integer"
+          },
+          "decision_set_sha256": {
+            "title": "Decision Set Sha256",
+            "type": "string"
+          },
+          "display_id": {
+            "title": "Display Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "submitted_by": {
+            "format": "uuid",
+            "title": "Submitted By",
+            "type": "string"
+          },
+          "you_submitted": {
+            "title": "You Submitted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "display_id",
+          "submitted_at",
+          "submitted_by",
+          "case_version",
+          "decision_set_sha256",
+          "you_submitted"
+        ],
+        "title": "QueueItem",
+        "type": "object"
+      },
       "RetentionDecisionCode": {
         "enum": [
           "DELETE",
@@ -1113,6 +1260,10 @@
             "title": "Counts",
             "type": "object"
           },
+          "decision_set_sha256": {
+            "title": "Decision Set Sha256",
+            "type": "string"
+          },
           "decisions_allowed": {
             "items": {
               "type": "string"
@@ -1146,7 +1297,8 @@
           "unresolved_manual_review",
           "items",
           "exception_codes",
-          "decisions_allowed"
+          "decisions_allowed",
+          "decision_set_sha256"
         ],
         "title": "RetentionView",
         "type": "object"
@@ -1403,6 +1555,31 @@
         ]
       }
     },
+    "/v1/approvals/queue": {
+      "get": {
+        "operationId": "approval_queue_v1_approvals_queue_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QueueItem"
+                  },
+                  "title": "Response Approval Queue V1 Approvals Queue Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Approval Queue",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
     "/v1/audit/verify": {
       "post": {
         "operationId": "verify_audit_chain_v1_audit_verify_post",
@@ -1542,6 +1719,113 @@
         "summary": "Get Case",
         "tags": [
           "cases"
+        ]
+      }
+    },
+    "/v1/cases/{case_id}/approvals": {
+      "get": {
+        "operationId": "approval_history_v1_cases__case_id__approvals_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApprovalView"
+                  },
+                  "title": "Response Approval History V1 Cases  Case Id  Approvals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approval History",
+        "tags": [
+          "approvals"
+        ]
+      },
+      "post": {
+        "operationId": "decide_v1_cases__case_id__approvals_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decide",
+        "tags": [
+          "approvals"
         ]
       }
     },

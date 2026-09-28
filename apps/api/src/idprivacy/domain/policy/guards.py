@@ -37,8 +37,15 @@ def _no_unresolved_manual_review(session: Session, request: PrivacyRequest) -> G
     return GuardResult(True)
 
 
+def _approval_valid_for_version(session: Session, request: PrivacyRequest) -> GuardResult:
+    from idprivacy.domain.approvals.service import latest_approval_is_valid
+
+    ok, reason = latest_approval_is_valid(session, request)
+    return GuardResult(ok, reason)
+
+
 GUARDS: dict[str, Guard] = {
     "no_unresolved_manual_review": _no_unresolved_manual_review,
-    "approval_valid_for_version": _not_implemented("M5"),
+    "approval_valid_for_version": _approval_valid_for_version,
     "all_fulfilment_tasks_terminal": _not_implemented("M6"),
 }

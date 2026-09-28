@@ -20,7 +20,7 @@ from alembic.config import Config
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -184,9 +184,13 @@ def provision_user(migrator_engine: Engine) -> Callable[..., tuple[uuid.UUID, st
             s.add(user)
             s.flush()
             for code in roles:
-                role = Role(tenant_id=tenant_id, code=code)
-                s.add(role)
-                s.flush()
+                role = s.execute(
+                    select(Role).where(Role.tenant_id == tenant_id, Role.code == code)
+                ).scalar_one_or_none()
+                if role is None:
+                    role = Role(tenant_id=tenant_id, code=code)
+                    s.add(role)
+                    s.flush()
                 s.add(UserRole(tenant_id=tenant_id, user_id=user.id, role_id=role.id))
             return user.id, subject
 
@@ -293,3 +297,16 @@ def connector_factory(mock_connectors: TestClient) -> Callable[[ConnectorConfig]
         )
 
     return build
+
+
+@pytest.fixture
+def evaluated(client: TestClient, make_tenant, connector_factory) -> tuple[uuid.UUID, uuid.UUID]:  # type: ignore[no-untyped-def]
+    """A discovered and retention-evaluated erasure case for the seeded requester."""
+    from tests.test_discovery import case_ready_for_discovery, discover_all
+    from tests.test_retention import evaluate_case
+
+    tenant = make_tenant()
+    rid = case_ready_for_discovery(client, tenant)
+    discover_all(client, tenant, rid, connector_factory)
+    evaluate_case(client, tenant, rid)
+    return tenant, rid

@@ -41,3 +41,31 @@ export async function staffLogin(page: Page, username: string, path = "/ops") {
   await page.getByLabel("Password", { exact: true }).fill(DEV_PASSWORD);
   await page.getByRole("button", { name: /sign in/i }).click();
 }
+
+/** Analyst opens the case, resolves the invoice's manual review and submits for approval. */
+export async function analystSubmitsForApproval(page: Page, reference: string): Promise<string> {
+  await staffLogin(page, "analyst@acme.example.test");
+  await page.getByRole("link", { name: reference }).click();
+  await page.waitForURL(/\/ops\/cases\/[0-9a-f-]+$/);
+  const caseUrl = page.url();
+  await page.goto(`${caseUrl}/retention`);
+  await expect(async () => {
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Start review" })).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Start review" }).click();
+  const invoice = page.getByRole("row", { name: /crm:invoice:i-5001/ });
+  await invoice.getByRole("button", { name: "Change decision" }).click();
+  await invoice.getByLabel("Reason (recorded in the audit trail)")
+    .fill("Unpaid invoice must be kept for GST records.");
+  await invoice.getByRole("button", { name: "Save decision" }).click();
+  await expect(invoice.getByText("Retain", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Submit for approval" }).click();
+  await expect(page.getByText("Awaiting approval")).toBeVisible();
+  return caseUrl;
+}
+
+export async function signOut(page: Page) {
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.waitForURL("http://localhost:3000/");
+}

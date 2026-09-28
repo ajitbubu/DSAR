@@ -6,7 +6,7 @@ A DPDP-first platform for automating Data Principal / Data Subject rights reques
 - Milestones and acceptance criteria: [`docs/milestones.md`](docs/milestones.md)
 - Open security and tenancy decisions: [`docs/open-decisions.md`](docs/open-decisions.md)
 
-**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) M3 (connector SDK, discovery, staff console) and M4 (retention engine, legal holds, review) complete.
+**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) M3 (connector SDK, discovery, staff console) M4 (retention engine, legal holds, review) and M5 (maker-checker approval) complete.
 
 ## Layout
 
@@ -88,3 +88,10 @@ Every credential in this repo (`.env.example`, the Keycloak realm, `seaweedfs/s3
 - **Review:** staff fire pack-defined events through `/v1/cases/{id}/transitions` (version-checked). Overrides only happen under review, use the pack's exception vocabulary, and are audited. Submission is blocked while any record needs manual review.
 - **Legal holds:** scoped to a case, data principal, connector or record type. A hold forces RETAIN, including on open cases already evaluated or awaiting approval, and held records can't be overridden to anything else. Releasing a hold never reverts decisions.
 - **Screen 7** (`/ops/cases/{id}/retention`): per-record decisions, basis and history, change-decision form, review actions and a legal-hold form. Browser mutations go through a CSRF-guarded, allowlisted BFF proxy.
+
+## What M5 provides
+
+- **Submission record:** entering `PENDING_APPROVAL` records the maker, the case version and a SHA-256 of the current decision set (match, decision id, decision, exception code).
+- **Approval** (`POST /v1/cases/{id}/approvals`, `Idempotency-Key` required): bound to the case version and decision-set hash (409 if either changed, including a late legal hold). The approver must differ from the submitter and must not have authored any override in the set (403). The DB also enforces `approved_by <> submitted_by` and one decision per submission. Replaying a key returns the stored response verbatim. Concurrent approvers serialise on the case row, so exactly one wins.
+- **Second enforcement:** the pack guard `approval_valid_for_version` re-checks everything when APPROVE fires. The generic transitions endpoint refuses APPROVE and REJECT, so there's no maker-checker bypass.
+- **Screens:** the approval queue (`/ops/approvals`, flags cases you submitted), and the approval screen with the decision set, approve/reject (a rejection needs a comment) and history. "Resume review" appears after a rejection.

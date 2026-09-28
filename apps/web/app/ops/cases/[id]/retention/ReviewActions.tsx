@@ -32,6 +32,11 @@ export function ReviewActions({ caseId, status, version, unresolved }: Props) {
           Start review
         </button>
       )}
+      {status === "REJECTED" && (
+        <button type="button" onClick={() => fire("REWORK")} disabled={busy || !csrf}>
+          Resume review
+        </button>
+      )}
       {status === "UNDER_REVIEW" && (
         <div className="actions">
           <button type="button" onClick={() => fire("SUBMIT_FOR_APPROVAL")}

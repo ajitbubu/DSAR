@@ -56,7 +56,7 @@ Rule evaluation from the pack against match attributes and legal holds. Exactly 
 - An override needs `PRIVACY_ANALYST`, an exception code from the pack vocabulary and a ≥10-character reason. The history shows the superseded decision.
 - A case can't go to `PENDING_APPROVAL` while any `MANUAL_REVIEW` decision is unresolved.
 
-## M5 — Review and maker-checker approval
+## M5 — Review and maker-checker approval ✅
 Case details, the analyst "submit for approval" action, the approval queue, approve/reject bound to `caseVersion` + `decisionSetSha256`.
 
 **Acceptance**
@@ -64,7 +64,7 @@ Case details, the analyst "submit for approval" action, the approval queue, appr
 - An approver who authored any override in the set → 403.
 - Approving a stale version or mismatched hash → 409.
 - Replaying the same `Idempotency-Key` → identical response, one `approval` row, one set of fulfilment tasks.
-- Rejection returns the case to `UNDER_REVIEW` with the comment audited.
+- Rejection returns the case to `UNDER_REVIEW` with the comment audited. (Implemented as REJECT → `REJECTED`, then the analyst's REWORK → `UNDER_REVIEW`, exactly as DPDP pack 1.0.0 defines it. A one-step return needs a new pack version.)
 - The authz matrix covers each role × each approval endpoint, including cross-tenant.
 
 ## M6 — Fulfilment orchestration

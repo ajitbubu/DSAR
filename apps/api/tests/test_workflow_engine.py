@@ -107,7 +107,7 @@ def test_system_cannot_be_impersonated_by_staff(client: TestClient, erasure_case
 def test_unimplemented_guards_fail_closed(
     client: TestClient, erasure_case, connector_factory
 ) -> None:
-    """APPROVE's guard lands in M5; until then approval is refused, never allowed."""
+    """Firing APPROVE without a recorded maker-checker approval is refused by the guard."""
     from tests.test_discovery import discover_all
     from tests.test_retention import evaluate_case
 

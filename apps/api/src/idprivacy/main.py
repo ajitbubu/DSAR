@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from idprivacy.api.routes import (
+    approvals,
     audit,
     cases,
     health,
@@ -105,6 +106,7 @@ def create_app(
     app.include_router(policy.router)
     app.include_router(cases.router)
     app.include_router(legal_holds.router)
+    app.include_router(approvals.router)
     if settings.env == "test" and settings.otp_provider == "mock":
         app.include_router(test_support.router)
     return app
