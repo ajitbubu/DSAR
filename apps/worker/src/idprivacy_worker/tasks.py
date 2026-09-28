@@ -5,6 +5,7 @@ from uuid import UUID
 import structlog
 
 from idprivacy.domain.communications import service as communications
+from idprivacy.domain.disclosure import service as disclosure
 from idprivacy.domain.discovery import service as discovery
 from idprivacy.domain.discovery.connectors import build_connector
 from idprivacy.domain.evidence import package as evidence
@@ -25,6 +26,7 @@ TOPIC_TASKS: dict[str, str] = {
     "case.verification_requested": "idprivacy_worker.tasks.run_verification",
     "case.evidence_requested": "idprivacy_worker.tasks.generate_evidence",
     "case.response_requested": "idprivacy_worker.tasks.respond_and_close",
+    "case.export_requested": "idprivacy_worker.tasks.run_disclosure_export",
 }
 
 
@@ -190,6 +192,36 @@ def generate_evidence(self: object, tenant_id: str, request_id: str) -> None:
         request_id=request_id,
         artifact_id=str(artifact) if artifact else "skipped",
     )
+
+
+@celery_app.task(
+    name="idprivacy_worker.tasks.run_disclosure_export",
+    bind=True,
+    autoretry_for=(RetryableConnectorFailure,),
+    retry_backoff=True,
+    retry_backoff_max=300,
+    max_retries=6,
+)
+def run_disclosure_export(self: object, tenant_id: str, request_id: str, export_id: str) -> None:
+    svc = services()
+    outcome = disclosure.run_export(
+        svc.engine,
+        tenant_id=UUID(tenant_id),
+        export_id=UUID(export_id),
+        factory=build_connector,
+        cipher=svc.cipher,
+        store=svc.blob_store,
+    )
+    log.info(
+        "disclosure_export_finished",
+        tenant_id=tenant_id,
+        export_id=export_id,
+        status=outcome.status,
+        error_code=outcome.error_code,
+    )
+    if outcome.status == "FAILED" and outcome.retryable:
+        # run_export re-runs a FAILED export while it is still the latest round.
+        raise RetryableConnectorFailure(export_id)
 
 
 _notifier: communications.NotificationProvider | None = None

@@ -15,6 +15,7 @@ export default function OpsLayout({ children }: { children: ReactNode }) {
         <nav aria-label="Main">
           <Link href="/ops">Cases</Link>
           <Link href="/ops/approvals">Approvals</Link>
+          <Link href="/ops/register">Processing register</Link>
           <SignOut />
         </nav>
       </header>

@@ -33,6 +33,16 @@ BODIES: dict[str, Any] = {
         "case_version": 1,
         "decision_set_sha256": "a" * 64,
     },
+    "/v1/cases/{case_id}/disclosure/exclusions": {
+        "export_id": str(uuid.uuid4()),
+        "data_match_id": str(uuid.uuid4()),
+        "action": "EXCLUDE",
+        "reason_code": "THIRD_PARTY_DATA",
+    },
+    "/v1/processing-register/{connector_id}": {
+        "purposes": ["Cross-tenant probe"],
+        "recipients": [],
+    },
     "/v1/legal-holds": {
         "scope": "CASE",
         "case_id": None,

@@ -45,6 +45,13 @@ def _all_fulfilment_tasks_terminal(session: Session, request: PrivacyRequest) ->
     return GuardResult(True) if done else GuardResult(False, f"{open_} task(s) still running")
 
 
+def _disclosure_reviewed(session: Session, request: PrivacyRequest) -> GuardResult:
+    from idprivacy.domain.disclosure.service import review_problem
+
+    problem = review_problem(session, request)
+    return GuardResult(False, problem) if problem else GuardResult(True)
+
+
 def _not_implemented_yet(milestone: str) -> Guard:
     """For guards a published pack names before the platform implements them: fail closed."""
 
@@ -59,6 +66,6 @@ GUARDS: dict[str, Guard] = {
     "approval_valid_for_version": _approval_valid_for_version,
     "all_fulfilment_tasks_terminal": _all_fulfilment_tasks_terminal,
     # Right to Access (docs/milestones-access.md).
-    "disclosure_reviewed": _not_implemented_yet("access milestone A2"),
+    "disclosure_reviewed": _disclosure_reviewed,
     "access_report_stored": _not_implemented_yet("access milestone A3"),
 }

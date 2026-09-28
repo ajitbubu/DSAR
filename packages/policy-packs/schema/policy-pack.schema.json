@@ -164,7 +164,9 @@
         "case:approve",
         "case:close",
         "legal_hold:read",
-        "legal_hold:manage"
+        "legal_hold:manage",
+        "disclosure:read",
+        "register:manage"
       ],
       "title": "Permission",
       "type": "string"

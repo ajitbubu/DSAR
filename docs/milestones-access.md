@@ -22,7 +22,7 @@ The second executable right. It reuses intake, OTP verification, jurisdiction, i
 - An ERASURE case under 1.1.0 behaves exactly as under 1.0.0. All existing erasure tests pass unchanged.
 - 1.0.0 still loads and verifies; the manifest pins both versions; the architecture test is still green.
 
-## A2 — Disclosure review and approval
+## A2 — Disclosure review and approval ✅
 
 - Export at review time into an encrypted draft. The analyst sees records and fields and excludes fields or records with a reason code (append-only). A processing summary comes from a tenant-maintained processing register (purposes, recipients per connector or category, covering s.11(1)(b) "other fiduciaries/processors").
 - The approver authorises the disclosure set (hash-bound, same maker-checker rules as erasure).
@@ -30,6 +30,16 @@ The second executable right. It reuses intake, OTP verification, jurisdiction, i
 **Acceptance**
 - Excluded content never reaches the report. Every exclusion needs a reason from the pack vocabulary. A changed disclosure set invalidates an approval (409). The analyst can't approve their own set (403).
 - DB rows, logs and audit details contain no exported values (scans extended).
+
+**As built**
+- `POST /v1/cases/{id}/disclosure/exports` starts an export round (only for an ACCESS case, only while it's `UNDER_REVIEW`). The worker (`case.export_requested`) calls `export_records` per connector in batches of 50, outside any transaction, and stores the bundle as a single AES-GCM envelope under the tenant key in private object storage. `disclosure_export` holds status, counts and the content SHA-256. Records deleted since discovery are listed as missing. A new round resets exclusions.
+- `GET /v1/cases/{id}/disclosure` is the only way to see exported content. It needs the new `disclosure:read` permission (analysts and approvers, not auditors or admins), every read is audited, and responses are sent `Cache-Control: no-store`.
+- `POST /v1/cases/{id}/disclosure/exclusions` withholds or restores a record or a field. It's append-only (`disclosure_exclusion`, where the latest row per record and field wins), and reasons must come from the pinned pack's exception codes.
+- Processing register: `GET /v1/processing-register` and `POST /v1/processing-register/{connector}` (new `register:manage` permission, tenant admin). It's append-only, and each change is a new version.
+- The `disclosure_reviewed` guard needs a READY latest export and a register entry for every connector the case found data in.
+- The approval hash now also covers the export hash, the exclusions and the register versions. It's unchanged for cases without a disclosure. Exclusion authors can't approve.
+- An approved access case stays `APPROVED`. A3 builds the report from there instead of erasure fulfilment.
+- UI: the case's Disclosure tab, a disclosure summary on the approval page, and `/ops/register`. Playwright spec `e2e/access-disclosure.spec.ts`. The requester-facing choice of right arrives in A3, so the spec submits the request through the public API.
 
 ## A3 — Report delivery to the requester
 

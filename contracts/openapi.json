@@ -678,6 +678,70 @@
         "title": "DecisionView",
         "type": "object"
       },
+      "DisclosureView": {
+        "properties": {
+          "disclosure_set_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disclosure Set Sha256"
+          },
+          "export": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExportView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "missing": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "processing": {
+            "items": {
+              "$ref": "#/components/schemas/ProcessingView"
+            },
+            "title": "Processing",
+            "type": "array"
+          },
+          "reason_codes": {
+            "items": {
+              "$ref": "#/components/schemas/ReasonCode"
+            },
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/RecordView"
+            },
+            "title": "Records",
+            "type": "array"
+          }
+        },
+        "required": [
+          "export",
+          "records",
+          "missing",
+          "processing",
+          "reason_codes",
+          "disclosure_set_sha256"
+        ],
+        "title": "DisclosureView",
+        "type": "object"
+      },
       "DiscoveryView": {
         "properties": {
           "case_status": {
@@ -834,6 +898,85 @@
         "title": "ExceptionCodeView",
         "type": "object"
       },
+      "ExclusionBody": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "EXCLUDE",
+              "INCLUDE"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "data_match_id": {
+            "format": "uuid",
+            "title": "Data Match Id",
+            "type": "string"
+          },
+          "export_id": {
+            "format": "uuid",
+            "title": "Export Id",
+            "type": "string"
+          },
+          "field_name": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_.]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Name"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z][A-Z0-9_]{1,39}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          }
+        },
+        "required": [
+          "export_id",
+          "data_match_id",
+          "action"
+        ],
+        "title": "ExclusionBody",
+        "type": "object"
+      },
+      "ExclusionResult": {
+        "properties": {
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "disclosure_set_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disclosure Set Sha256"
+          }
+        },
+        "required": [
+          "changed",
+          "disclosure_set_sha256"
+        ],
+        "title": "ExclusionResult",
+        "type": "object"
+      },
       "ExecutionView": {
         "properties": {
           "attempt_no": {
@@ -909,6 +1052,134 @@
           "finished_at"
         ],
         "title": "ExecutionView",
+        "type": "object"
+      },
+      "ExportView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "field_count": {
+            "title": "Field Count",
+            "type": "integer"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "missing_count": {
+            "title": "Missing Count",
+            "type": "integer"
+          },
+          "record_count": {
+            "title": "Record Count",
+            "type": "integer"
+          },
+          "round": {
+            "title": "Round",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "round",
+          "status",
+          "error_code",
+          "record_count",
+          "field_count",
+          "missing_count",
+          "created_at",
+          "finished_at"
+        ],
+        "title": "ExportView",
+        "type": "object"
+      },
+      "FieldView": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "excluded": {
+            "title": "Excluded",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "category",
+          "value",
+          "excluded",
+          "reason_code"
+        ],
+        "title": "FieldView",
         "type": "object"
       },
       "FulfilmentView": {
@@ -1354,6 +1625,53 @@
         "title": "PackSummary",
         "type": "object"
       },
+      "ProcessingView": {
+        "properties": {
+          "connector_id": {
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "entry_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Id"
+          },
+          "purposes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Purposes",
+            "type": "array"
+          },
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/Recipient"
+            },
+            "title": "Recipients",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connector_id",
+          "display_name",
+          "entry_id",
+          "purposes",
+          "recipients"
+        ],
+        "title": "ProcessingView",
+        "type": "object"
+      },
       "PublicCaseStatus": {
         "properties": {
           "canCancel": {
@@ -1458,6 +1776,129 @@
           "you_submitted"
         ],
         "title": "QueueItem",
+        "type": "object"
+      },
+      "ReasonCode": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "label"
+        ],
+        "title": "ReasonCode",
+        "type": "object"
+      },
+      "Recipient": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "PROCESSOR",
+              "FIDUCIARY",
+              "OTHER"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "Recipient",
+        "type": "object"
+      },
+      "RecordView": {
+        "properties": {
+          "connector_id": {
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "excluded": {
+            "title": "Excluded",
+            "type": "boolean"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldView"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "match_id": {
+            "format": "uuid",
+            "title": "Match Id",
+            "type": "string"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "match_id",
+          "connector_id",
+          "record_type",
+          "excluded",
+          "reason_code",
+          "fields"
+        ],
+        "title": "RecordView",
+        "type": "object"
+      },
+      "RegisterBody": {
+        "additionalProperties": false,
+        "properties": {
+          "purposes": {
+            "items": {
+              "maxLength": 200,
+              "minLength": 3,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Purposes",
+            "type": "array"
+          },
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/Recipient"
+            },
+            "maxItems": 20,
+            "title": "Recipients",
+            "type": "array"
+          }
+        },
+        "required": [
+          "purposes",
+          "recipients"
+        ],
+        "title": "RegisterBody",
         "type": "object"
       },
       "ResultView": {
@@ -2355,6 +2796,145 @@
         ]
       }
     },
+    "/v1/cases/{case_id}/disclosure": {
+      "get": {
+        "operationId": "get_disclosure_v1_cases__case_id__disclosure_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisclosureView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Disclosure",
+        "tags": [
+          "disclosure"
+        ]
+      }
+    },
+    "/v1/cases/{case_id}/disclosure/exclusions": {
+      "post": {
+        "operationId": "set_exclusion_v1_cases__case_id__disclosure_exclusions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExclusionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExclusionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Exclusion",
+        "tags": [
+          "disclosure"
+        ]
+      }
+    },
+    "/v1/cases/{case_id}/disclosure/exports": {
+      "post": {
+        "operationId": "request_export_v1_cases__case_id__disclosure_exports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Export",
+        "tags": [
+          "disclosure"
+        ]
+      }
+    },
     "/v1/cases/{case_id}/discovery": {
       "get": {
         "operationId": "get_discovery_v1_cases__case_id__discovery_get",
@@ -3120,6 +3700,83 @@
         "summary": "List Policy Packs",
         "tags": [
           "policy"
+        ]
+      }
+    },
+    "/v1/processing-register": {
+      "get": {
+        "operationId": "get_register_v1_processing_register_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProcessingView"
+                  },
+                  "title": "Response Get Register V1 Processing Register Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Register",
+        "tags": [
+          "disclosure"
+        ]
+      }
+    },
+    "/v1/processing-register/{connector_id}": {
+      "post": {
+        "operationId": "update_register_v1_processing_register__connector_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connector_id",
+            "required": true,
+            "schema": {
+              "title": "Connector Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessingView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Register",
+        "tags": [
+          "disclosure"
         ]
       }
     },

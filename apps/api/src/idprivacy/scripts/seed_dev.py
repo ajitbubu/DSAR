@@ -16,6 +16,7 @@ from idprivacy.platform.crypto import FieldCipher, build_key_provider
 from idprivacy.platform.models import (
     AppUser,
     ConnectorConfig,
+    ProcessingRegisterEntry,
     Role,
     Tenant,
     TenantPolicyPack,
@@ -77,6 +78,14 @@ DEV_REGION = "IN"
 DEV_PACKS = [("DPDP", "1.1.0")]  # new cases use the latest; old ones stay pinned
 MOCK_BASE = os.environ.get("IDP_MOCK_CONNECTORS_URL", "http://mock-connectors:8100")
 DEV_CONNECTORS = [("mock-crm", "CRM (mock)", "crm"), ("mock-docs", "Document store (mock)", "docs")]
+# Illustrative processing-register entries (decision D-27), so access cases can be submitted.
+DEV_REGISTER = {
+    "mock-crm": (
+        ["Order fulfilment and customer support", "Billing"],
+        [{"name": "Example Payments Pvt Ltd", "kind": "PROCESSOR"}],
+    ),
+    "mock-docs": (["Handling complaints and warranty claims"], []),
+}
 
 
 def seed(session: Session, cipher: FieldCipher) -> None:
@@ -118,6 +127,26 @@ def seed(session: Session, cipher: FieldCipher) -> None:
                         base_url=f"{MOCK_BASE}/{slug}/{system}",
                         credential_ref="env:IDP_CONNECTOR_TOKEN_MOCK",
                         enabled=True,
+                    )
+                )
+        session.flush()
+        for connector_id, (purposes, recipients) in DEV_REGISTER.items():
+            # Explicit tenant filter: the seed runs as the RLS-exempt migrator.
+            if (
+                session.execute(
+                    select(ProcessingRegisterEntry.id).where(
+                        ProcessingRegisterEntry.tenant_id == tenant_id,
+                        ProcessingRegisterEntry.connector_id == connector_id,
+                    )
+                ).first()
+                is None
+            ):
+                session.add(
+                    ProcessingRegisterEntry(
+                        tenant_id=tenant_id,
+                        connector_id=connector_id,
+                        purposes=purposes,
+                        recipients=recipients,
                     )
                 )
         roles: dict[str, uuid.UUID] = {}

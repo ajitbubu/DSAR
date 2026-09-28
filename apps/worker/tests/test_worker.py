@@ -64,3 +64,9 @@ def test_response_topic_is_routed() -> None:
     from idprivacy_worker.tasks import TOPIC_TASKS
 
     assert TOPIC_TASKS["case.response_requested"] in celery_app.tasks
+
+
+def test_disclosure_export_topic_is_routed() -> None:
+    from idprivacy_worker.tasks import TOPIC_TASKS
+
+    assert TOPIC_TASKS["case.export_requested"] in celery_app.tasks

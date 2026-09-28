@@ -132,9 +132,14 @@ Every credential in this repo (`.env.example`, the Keycloak realm, `seaweedfs/s3
 
 ## Next: Right to Access (in progress)
 
-The plan is in [`docs/milestones-access.md`](docs/milestones-access.md). **A1 is done:**
+The plan is in [`docs/milestones-access.md`](docs/milestones-access.md). **A1 and A2 are done.** A1:
 - The connector SDK has `export_records`: bounded, and it refuses records that weren't requested. The mocks implement it, and the conformance kit checks it.
 - `DPDP@1.1.0` makes ACCESS executable with an `access` workflow. 1.0.0 stays pinned for existing cases, and dev tenants now use 1.1.0.
 - After discovery, the next step is chosen by the pack: erasure workflows evaluate retention, and access workflows go straight to review.
 
-A2 (disclosure review and approval) and A3 (report delivery) are next. Until then, submitting an access case for approval fails closed.
+A2:
+- An analyst exports the records into an encrypted draft, reviews them on the case's **Disclosure** tab, and withholds records or fields with a reason from the pack.
+- A tenant-maintained **processing register** (`/ops/register`) says why each system holds data and who receives it.
+- A separate approver authorises the exact disclosure set, which is hash-bound. Exported values never reach DB rows, the audit trail or logs.
+
+A3 (building the report and delivering it to the requester) is next. Until then, an approved access case waits at `APPROVED`.

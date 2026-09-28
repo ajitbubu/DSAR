@@ -631,3 +631,77 @@ class Communication(Base):
     public_text: Mapped[str] = mapped_column(Text, nullable=False)
     body_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = _created_at()
+
+
+# ---------- Access A2: disclosure review and the processing register ----------------
+
+
+class DisclosureExport(Base):
+    """One export round for an access case. Content lives only in the encrypted blob."""
+
+    __tablename__ = "disclosure_export"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_disclosure_export_tenant_id_id"),
+        UniqueConstraint("tenant_id", "request_id", "round", name="uq_disclosure_export_round"),
+        ForeignKeyConstraint(
+            ["tenant_id", "request_id"],
+            ["privacy_request.tenant_id", "privacy_request.id"],
+            name="fk_disclosure_export_request",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    round: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    object_key: Mapped[str | None] = mapped_column(String(300))
+    content_sha256: Mapped[str | None] = mapped_column(String(64))
+    record_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    field_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    missing_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_code: Mapped[str | None] = mapped_column(String(40))
+    requested_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class DisclosureExclusion(Base):
+    """Append-only. Latest row per (export, record, field) wins; field None = whole record."""
+
+    __tablename__ = "disclosure_exclusion"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "export_id"],
+            ["disclosure_export.tenant_id", "disclosure_export.id"],
+            name="fk_disclosure_exclusion_export",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "data_match_id"],
+            ["data_match.tenant_id", "data_match.id"],
+            name="fk_disclosure_exclusion_match",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    export_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    data_match_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    field_name: Mapped[str | None] = mapped_column(String(64))
+    action: Mapped[str] = mapped_column(String(8), nullable=False)
+    reason_code: Mapped[str | None] = mapped_column(String(40))
+    created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class ProcessingRegisterEntry(Base):
+    """Append-only versions; the latest per connector is current (decision D-27)."""
+
+    __tablename__ = "processing_register_entry"
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    connector_id: Mapped[str] = mapped_column(String(40), nullable=False)
+    purposes: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    recipients: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False)
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = _created_at()

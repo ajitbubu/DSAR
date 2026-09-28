@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from idprivacy.domain.audit import service as audit
 from idprivacy.domain.cases.lifecycle import CaseStatus
+from idprivacy.domain.disclosure.service import disclosure_set_hash, exclusion_authors
 from idprivacy.domain.retention.service import current_decisions
 from idprivacy.platform.auth.rbac import StaffPrincipal
 from idprivacy.platform.models import Approval, ApprovalSubmission, PrivacyRequest
@@ -35,7 +36,11 @@ def decision_set_hash(session: Session, request_id: UUID) -> str:
         (str(match_id), str(d.id), d.decision, d.exception_code or "")
         for match_id, d in current_decisions(session, request_id).items()
     )
-    body = json.dumps({"request_id": str(request_id), "decisions": items}, separators=(",", ":"))
+    payload: dict[str, Any] = {"request_id": str(request_id), "decisions": items}
+    disclosure = disclosure_set_hash(session, request_id)
+    if disclosure is not None:  # access cases: bind the exact set of data to be disclosed
+        payload["disclosure"] = disclosure
+    body = json.dumps(payload, separators=(",", ":"))
     return hashlib.sha256(body.encode()).hexdigest()
 
 
@@ -78,11 +83,12 @@ def record_submission(
 
 
 def override_authors(session: Session, request_id: UUID) -> set[UUID]:
+    """Everyone who shaped the set: retention overrides and disclosure exclusions."""
     return {
         d.decided_by
         for d in current_decisions(session, request_id).values()
         if d.source == "ANALYST_OVERRIDE" and d.decided_by is not None
-    }
+    } | exclusion_authors(session, request_id)
 
 
 @dataclass(frozen=True)

@@ -13,6 +13,7 @@ from idprivacy.api.routes import (
     approvals,
     audit,
     cases,
+    disclosure,
     evidence,
     fulfilment,
     health,
@@ -133,6 +134,7 @@ def create_app(
     app.include_router(approvals.router)
     app.include_router(fulfilment.router)
     app.include_router(evidence.router)
+    app.include_router(disclosure.router)
     if settings.env == "test" and settings.otp_provider == "mock":
         app.include_router(test_support.router)
     return app

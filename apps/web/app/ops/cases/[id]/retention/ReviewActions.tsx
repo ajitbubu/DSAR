@@ -27,7 +27,7 @@ export function ReviewActions({ caseId, status, version, unresolved }: Props) {
   return (
     <div>
       {error && <div className="alert error-box" role="alert">{error}</div>}
-      {status === "RETENTION_EVALUATED" && (
+      {(status === "RETENTION_EVALUATED" || status === "DISCOVERY_COMPLETE") && (
         <button type="button" onClick={() => fire("BEGIN_REVIEW")} disabled={busy || !csrf}>
           Start review
         </button>

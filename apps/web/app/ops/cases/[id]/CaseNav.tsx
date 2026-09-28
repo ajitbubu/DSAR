@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type Tab = "overview" | "discovery" | "retention" | "approval" | "fulfilment" | "verification"
+type Tab = "overview" | "discovery" | "retention" | "disclosure" | "approval" | "fulfilment" | "verification"
   | "evidence" | "audit";
 
 export function CaseNav({ id, current }: { id: string; current: Tab }) {
@@ -8,6 +8,7 @@ export function CaseNav({ id, current }: { id: string; current: Tab }) {
     { key: "overview", label: "Overview", href: `/ops/cases/${id}` },
     { key: "discovery", label: "Discovery", href: `/ops/cases/${id}/discovery` },
     { key: "retention", label: "Retention", href: `/ops/cases/${id}/retention` },
+    { key: "disclosure", label: "Disclosure", href: `/ops/cases/${id}/disclosure` },
     { key: "approval", label: "Approval", href: `/ops/cases/${id}/approval` },
     { key: "fulfilment", label: "Fulfilment", href: `/ops/cases/${id}/fulfilment` },
     { key: "verification", label: "Verification", href: `/ops/cases/${id}/verification` },

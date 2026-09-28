@@ -105,6 +105,13 @@ COVERAGE: dict[str, list[str]] = {
         "security/test_injection_and_secrets.py::test_no_sql_is_built_from_interpolated_strings",
         "security/test_injection_and_secrets.py::test_injection_payloads_are_just_data",
     ],
+    "T-26": [
+        "test_access_a2.py::test_view_is_audited_uncached_and_limited_to_reviewers_and_approvers",
+        "test_access_a2.py::test_approval_is_bound_to_the_disclosure_set",
+        "test_access_a2.py::test_an_exclusion_author_cannot_approve",
+        "test_access_a2.py::test_exported_values_never_reach_db_rows_audit_or_logs",
+        "test_access_a2.py::test_export_is_encrypted_and_only_hashes_reach_the_db",
+    ],
 }
 PROCESS_ONLY = {"T-21"}  # operator access: a process control, tracked as decision D-7
 

@@ -73,3 +73,27 @@ export async function signOut(page: Page) {
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.waitForURL("http://localhost:3000/");
 }
+
+/**
+ * Submits and verifies an access request straight through the public API, as the BFF would.
+ * The requester-facing choice of right arrives with access milestone A3.
+ */
+export async function submitVerifiedAccessRequest(request: APIRequestContext, email: string): Promise<string> {
+  const headers = { "X-Internal-Auth": BFF_SECRET, "X-Client-IP": "203.0.113.50" };
+  const res = await request.post(`${API}/v1/public/requests`, {
+    headers,
+    data: {
+      intakeSlug: "acme", rights: ["ACCESS"], fullName: "E2E Requester",
+      contact: { channel: "EMAIL", value: email }, additionalIdentifiers: [],
+      residencyClaim: "IN", consentToProcess: true,
+    },
+  });
+  expect(res.status()).toBe(202);
+  const { displayId, challengeId } = await res.json();
+  const otp = await request.get(`${API}/v1/test-support/otp/${challengeId}`, { headers });
+  const confirm = await request.post(`${API}/v1/public/verifications/${challengeId}/confirm`, {
+    headers, data: { code: (await otp.json()).code },
+  });
+  expect(confirm.status()).toBe(200);
+  return displayId;
+}

@@ -10,6 +10,9 @@ describe("isAllowedStaffMutation", () => {
     "/v1/legal-holds",
     `/v1/legal-holds/${ID}/release`,
     `/v1/cases/${ID}/approvals`,
+    `/v1/cases/${ID}/disclosure/exports`,
+    `/v1/cases/${ID}/disclosure/exclusions`,
+    "/v1/processing-register/mock-crm",
   ])("allows %s", (p) => expect(isAllowedStaffMutation(p)).toBe(true));
 
   it.each([
@@ -18,5 +21,8 @@ describe("isAllowedStaffMutation", () => {
     `/v1/cases/${ID.toUpperCase()}/transitions`,
     "/v1/legal-holds/../me",
     `/v1/cases/${ID}/transitions?x=1`,
+    "/v1/processing-register/../me",
+    "/v1/processing-register/Mock-CRM",
+    `/v1/cases/${ID}/disclosure`,
   ])("refuses %s", (p) => expect(isAllowedStaffMutation(p)).toBe(false));
 });
