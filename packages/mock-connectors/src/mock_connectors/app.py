@@ -69,6 +69,7 @@ class Fault(BaseModel):
     fail_next: int = 1
     status: int = 503
     apply_before_failing: bool = False  # simulates a timeout after the effect happened
+    lie: bool = False  # report actions as APPLIED without changing anything
 
 
 class _SystemState:
@@ -269,6 +270,30 @@ def create_app(
                 )
                 return result
 
+            with state.lock:
+                fault = state.faults.get((account, system))
+                lying = fault is not None and fault.lie
+            if lying:
+                result = ActionResult(
+                    idempotency_key=body.idempotency_key,
+                    receipt_id=f"rcpt_{secrets.token_hex(8)}",
+                    action=body.action,
+                    source_record_ref=body.source_record_ref,
+                    outcome="APPLIED",
+                    applied_at=datetime.now(UTC),
+                    replayed=False,
+                )
+                sys_state.by_key[body.idempotency_key] = result
+                sys_state.receipts[result.receipt_id] = EvidenceBundle(
+                    receipt_id=result.receipt_id,
+                    idempotency_key=result.idempotency_key,
+                    action=result.action,
+                    source_record_ref=result.source_record_ref,
+                    applied_at=result.applied_at,
+                    system_statement="claimed applied",
+                    sha256=hashlib.sha256(result.model_dump_json().encode()).hexdigest(),
+                )
+                return result
             maybe_fail(account, system, apply)
             return apply()
 

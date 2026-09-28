@@ -21,6 +21,8 @@ export type CsrfInput = {
   headerToken: string | null;
   cookieToken: string | undefined;
   expectedOrigin: string;
+  /** Content type the route accepts; JSON unless the route handles uploads. */
+  allowedContentType?: "application/json" | "multipart/form-data";
 };
 
 /**
@@ -33,7 +35,8 @@ export function checkCsrf(input: CsrfInput): string | null {
   if (["GET", "HEAD", "OPTIONS"].includes(input.method.toUpperCase())) return null;
   if (input.origin !== input.expectedOrigin) return "origin";
   if (input.secFetchSite && input.secFetchSite !== "same-origin") return "fetch-site";
-  if (!input.contentType?.toLowerCase().startsWith("application/json")) return "content-type";
+  const allowed = input.allowedContentType ?? "application/json";
+  if (!input.contentType?.toLowerCase().startsWith(allowed)) return "content-type";
   if (!input.headerToken || !input.cookieToken) return "token-missing";
   if (!safeEqual(input.headerToken, input.cookieToken)) return "token-mismatch";
   return null;

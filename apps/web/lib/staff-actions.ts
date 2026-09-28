@@ -12,7 +12,11 @@ export const STAFF_MUTATIONS: readonly RegExp[] = [
   new RegExp(`^/v1/cases/${UUID}/fulfilment-tasks/${UUID}/retry$`),
   /^\/v1\/legal-holds$/,
   new RegExp(`^/v1/legal-holds/${UUID}/release$`),
+  new RegExp(`^/v1/cases/${UUID}/reconcile$`),
 ];
+
+export const STAFF_DOWNLOAD = new RegExp(`^/v1/cases/${UUID}/evidence/${UUID}/content$`);
+export const STAFF_UPLOAD = new RegExp(`^/v1/cases/${UUID}/evidence$`);
 
 export function isAllowedStaffMutation(path: string): boolean {
   return STAFF_MUTATIONS.some((re) => re.test(path));

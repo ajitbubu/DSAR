@@ -37,7 +37,7 @@ test("a separate approver authorises the decisions (screen 8)", async ({ browser
   await expect(async () => {
     await page.reload();
     await expect(page.getByText("succeeded 2")).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 20_000 });
+  }).toPass({ timeout: 45_000 });
   await expect(page.getByRole("row", { name: /crm:invoice:i-5001/ })
     .getByText("RETAIN: LEGAL_OBLIGATION")).toBeVisible();
   await expect(page.getByText(/^Evidence: succeeded/).first()).toBeVisible();

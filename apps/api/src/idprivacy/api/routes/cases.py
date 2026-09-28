@@ -20,6 +20,7 @@ from idprivacy.domain.approvals import service as approvals
 from idprivacy.domain.audit import service as audit
 from idprivacy.domain.cases.lifecycle import CaseStatus, InvalidTransition, StaleVersion
 from idprivacy.domain.discovery import service as discovery
+from idprivacy.domain.identity.masking import mask
 from idprivacy.domain.identity.resolution import CTX_REQUEST_IDENTIFIER
 from idprivacy.domain.policy.model import RetentionDecisionCode
 from idprivacy.domain.policy.workflow import GuardFailed, TransitionForbidden, fire, target_of
@@ -103,15 +104,6 @@ class DiscoveryView(BaseModel):
     case_status: CaseStatus
     total_matches: int
     sources: list[SourceView]
-
-
-def mask(kind: str, value: str) -> str:
-    if kind == "EMAIL":
-        local, _, domain = value.partition("@")
-        return f"{local[:1]}•••@{domain[:1]}•••.{domain.rsplit('.', 1)[-1]}"
-    if kind == "PHONE":
-        return f"{value[:3]}•••••{value[-3:]}"
-    return f"{'•' * max(len(value) - 2, 1)}{value[-2:]}"
 
 
 def _cursor(item: PrivacyRequest) -> str:

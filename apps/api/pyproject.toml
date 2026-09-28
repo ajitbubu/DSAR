@@ -18,6 +18,7 @@ dependencies = [
   "boto3>=1.35",
   "idprivacy-connector-sdk",
   "pyyaml>=6.0",
+  "python-multipart>=0.0.9",
 ]
 
 [tool.uv.sources]

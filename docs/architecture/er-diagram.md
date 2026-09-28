@@ -265,9 +265,10 @@ erDiagram
     uuid id PK
     uuid tenant_id FK
     uuid fulfilment_task_id FK
-    uuid rescan_job_id FK
+    int round "UK(task, round)"
     string expected "ABSENT|ANONYMIZED|RESTRICTED|PRESENT"
-    string observed
+    string observed_verify "connector's answer"
+    string observed_rescan "independent rescan"
     string outcome "PASS|FAIL"
   }
   COMMUNICATION {
@@ -283,7 +284,8 @@ erDiagram
     uuid id PK
     uuid tenant_id FK
     uuid request_id FK
-    string kind "CONNECTOR_RECEIPT|VERIFICATION_REPORT|PACKAGE|MANIFEST|UPLOAD"
+    string kind "PACKAGE|UPLOAD"
+    string manifest_sha256 "PACKAGE only; also in audit chain"
     string object_key "opaque, tenant-prefixed"
     string sha256
     int size_bytes

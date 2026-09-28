@@ -13,6 +13,7 @@ from idprivacy.api.routes import (
     approvals,
     audit,
     cases,
+    evidence,
     fulfilment,
     health,
     legal_holds,
@@ -22,11 +23,13 @@ from idprivacy.api.routes import (
     test_support,
 )
 from idprivacy.config import Settings, get_settings
+from idprivacy.domain.evidence.uploads import MAX_UPLOAD_BYTES
 from idprivacy.domain.identity.otp import build_otp_provider
 from idprivacy.platform.auth.oidc import KeyResolver, OidcVerifier, jwks_key_resolver
 from idprivacy.platform.http import BodySizeLimitMiddleware, install_problem_handlers
 from idprivacy.platform.logging import configure_logging
 from idprivacy.platform.ratelimit import MemoryRateLimiter, RateLimiter, RedisRateLimiter
+from idprivacy.platform.storage import BlobStore
 from idprivacy.runtime import build_services
 
 
@@ -57,6 +60,9 @@ def _probes(settings: Settings, engine: Any) -> dict[str, Callable[[], None]]:
     return {"database": db, "redis": cache, "storage": storage}
 
 
+UPLOAD_LIMIT = MAX_UPLOAD_BYTES + 64 * 1024  # file plus multipart framing
+
+
 def _rate_limiter(settings: Settings) -> RateLimiter:
     if settings.rate_limiter == "memory":
         return MemoryRateLimiter()
@@ -68,6 +74,7 @@ def create_app(
     *,
     key_resolver: KeyResolver | None = None,
     readiness_probes: dict[str, Callable[[], None]] | None = None,
+    blob_store: BlobStore | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging()
@@ -78,7 +85,7 @@ def create_app(
         docs_url="/docs" if settings.env in {"local", "test"} else None,
         redoc_url=None,
     )
-    svc = build_services(settings)
+    svc = build_services(settings, blob_store)
     engine = svc.engine
     app.state.settings = settings
     app.state.log = structlog.get_logger("idprivacy.api")
@@ -98,7 +105,11 @@ def create_app(
         readiness_probes if readiness_probes is not None else _probes(settings, engine)
     )
 
-    app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_body_bytes)
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        max_bytes=settings.max_body_bytes,
+        overrides={r"^/v1/cases/[0-9a-f-]{36}/evidence$": UPLOAD_LIMIT},
+    )
     install_problem_handlers(app)
     app.include_router(health.router)
     app.include_router(me.router)
@@ -109,6 +120,7 @@ def create_app(
     app.include_router(legal_holds.router)
     app.include_router(approvals.router)
     app.include_router(fulfilment.router)
+    app.include_router(evidence.router)
     if settings.env == "test" and settings.otp_provider == "mock":
         app.include_router(test_support.router)
     return app

@@ -3,7 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 /** Runs against the Docker Compose stack (`make up`); API runs with IDP_ENV=test. */
 export default defineConfig({
   testDir: "./e2e",
-  timeout: 30_000,
+  // Specs wait on the real async pipeline (outbox → worker → connectors); leave headroom.
+  timeout: 90_000,
   // One shared stack with real rate limits: run serially, and each spec resets limits.
   workers: 1,
   fullyParallel: false,

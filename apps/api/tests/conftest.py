@@ -92,7 +92,13 @@ def migrated_db() -> None:
     cfg = Config(str(API_DIR / "alembic.ini"))
     cfg.set_main_option("script_location", str(API_DIR / "migrations"))
     cfg.attributes["url"] = MIGRATOR_URL
-    command.downgrade(cfg, "base")
+    # A clean schema every session. Downgrades aren't relied on: append-only tables and
+    # reconciliation rounds make some of them deliberately refuse to run.
+    reset = create_engine(MIGRATOR_URL)
+    with reset.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+    reset.dispose()
     command.upgrade(cfg, "head")
     engine = create_engine(MIGRATOR_URL)
     with Session(engine) as s, s.begin():
@@ -248,10 +254,13 @@ def make_token(rsa_key: rsa.RSAPrivateKey) -> Callable[..., str]:
 
 @pytest.fixture
 def client(migrated_db: None, rsa_key: rsa.RSAPrivateKey) -> Iterator[TestClient]:
+    from idprivacy.platform.storage import MemoryBlobStore
+
     app = create_app(
         make_settings(),
         key_resolver=lambda _token: rsa_key.public_key(),
         readiness_probes={},
+        blob_store=MemoryBlobStore(),
     )
     with TestClient(app) as c:
         yield c
@@ -339,3 +348,11 @@ def pending(
         "analyst_id": analyst_id,
         "approver": bearer(make_token(approver_sub)),
     }
+
+
+@pytest.fixture
+def approved(client: TestClient, pending) -> dict[str, Any]:  # type: ignore[no-untyped-def]
+    from tests.test_approvals import decide
+
+    assert decide(client, pending["rid"], pending["approver"]).status_code == 201
+    return pending

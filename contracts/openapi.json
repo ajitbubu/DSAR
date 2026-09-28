@@ -125,6 +125,77 @@
         "title": "ApprovalView",
         "type": "object"
       },
+      "ArtifactView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manifest Sha256"
+          },
+          "media_type": {
+            "title": "Media Type",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "sha256",
+          "manifest_sha256",
+          "size_bytes",
+          "media_type",
+          "created_by",
+          "created_at"
+        ],
+        "title": "ArtifactView",
+        "type": "object"
+      },
+      "Body_upload_evidence_v1_cases__case_id__evidence_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_evidence_v1_cases__case_id__evidence_post",
+        "type": "object"
+      },
       "CaseDetail": {
         "properties": {
           "display_id": {
@@ -1282,6 +1353,75 @@
         "title": "QueueItem",
         "type": "object"
       },
+      "ResultView": {
+        "properties": {
+          "connector_id": {
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "expected": {
+            "title": "Expected",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "observed_rescan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Rescan"
+          },
+          "observed_verify": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Verify"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "round": {
+            "title": "Round",
+            "type": "integer"
+          },
+          "source_record_ref": {
+            "title": "Source Record Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_record_ref",
+          "connector_id",
+          "round",
+          "expected",
+          "observed_verify",
+          "observed_rescan",
+          "outcome",
+          "note"
+        ],
+        "title": "ResultView",
+        "type": "object"
+      },
       "RetentionDecisionCode": {
         "enum": [
           "DELETE",
@@ -1697,6 +1837,38 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VerificationView": {
+        "properties": {
+          "case_status": {
+            "$ref": "#/components/schemas/CaseStatus"
+          },
+          "latest_round": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Round"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ResultView"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "case_status",
+          "latest_round",
+          "results"
+        ],
+        "title": "VerificationView",
         "type": "object"
       }
     }
@@ -2119,6 +2291,158 @@
         ]
       }
     },
+    "/v1/cases/{case_id}/evidence": {
+      "get": {
+        "operationId": "list_evidence_v1_cases__case_id__evidence_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ArtifactView"
+                  },
+                  "title": "Response List Evidence V1 Cases  Case Id  Evidence Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Evidence",
+        "tags": [
+          "verification",
+          "evidence"
+        ]
+      },
+      "post": {
+        "operationId": "upload_evidence_v1_cases__case_id__evidence_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_evidence_v1_cases__case_id__evidence_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Evidence",
+        "tags": [
+          "verification",
+          "evidence"
+        ]
+      }
+    },
+    "/v1/cases/{case_id}/evidence/{artifact_id}/content": {
+      "get": {
+        "operationId": "download_evidence_v1_cases__case_id__evidence__artifact_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Evidence",
+        "tags": [
+          "verification",
+          "evidence"
+        ]
+      }
+    },
     "/v1/cases/{case_id}/fulfilment-tasks": {
       "get": {
         "operationId": "list_tasks_v1_cases__case_id__fulfilment_tasks_get",
@@ -2282,6 +2606,54 @@
         ]
       }
     },
+    "/v1/cases/{case_id}/reconcile": {
+      "post": {
+        "operationId": "reconcile_v1_cases__case_id__reconcile_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Reconcile V1 Cases  Case Id  Reconcile Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconcile",
+        "tags": [
+          "verification",
+          "evidence"
+        ]
+      }
+    },
     "/v1/cases/{case_id}/retention": {
       "get": {
         "operationId": "get_retention_v1_cases__case_id__retention_get",
@@ -2376,6 +2748,50 @@
         "summary": "Transition Case",
         "tags": [
           "cases"
+        ]
+      }
+    },
+    "/v1/cases/{case_id}/verification": {
+      "get": {
+        "operationId": "get_verification_v1_cases__case_id__verification_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Verification",
+        "tags": [
+          "verification",
+          "evidence"
         ]
       }
     },

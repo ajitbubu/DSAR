@@ -332,6 +332,12 @@ def finish_if_complete(session: Session, *, request_id: UUID, registry: PolicyRe
     if not all_terminal(session, request_id)[0]:
         return False
     fire(session, request, "START_VERIFICATION", actor=ACTOR, registry=registry)
+    outbox.enqueue(
+        session,
+        tenant_id=request.tenant_id,
+        topic="case.verification_requested",
+        payload={"request_id": request.id},
+    )
     return True
 
 

@@ -6,9 +6,11 @@ import structlog
 
 from idprivacy.domain.discovery import service as discovery
 from idprivacy.domain.discovery.connectors import build_connector
+from idprivacy.domain.evidence import package as evidence
 from idprivacy.domain.fulfilment import service as fulfilment
 from idprivacy.domain.intake.pipeline import process_verified_case as run_pipeline
 from idprivacy.domain.retention import service as retention
+from idprivacy.domain.verification import service as verification
 from idprivacy.platform.db import TenantContext, tenant_session
 from idprivacy.platform.models import PrivacyRequest
 from idprivacy.runtime import services
@@ -21,6 +23,8 @@ TOPIC_TASKS: dict[str, str] = {
     "case.verified": "idprivacy_worker.tasks.process_verified_case",
     "case.discovery_requested": "idprivacy_worker.tasks.run_discovery",
     "case.fulfilment_requested": "idprivacy_worker.tasks.run_fulfilment",
+    "case.verification_requested": "idprivacy_worker.tasks.run_verification",
+    "case.evidence_requested": "idprivacy_worker.tasks.generate_evidence",
 }
 
 
@@ -139,3 +143,54 @@ def run_fulfilment(self: object, tenant_id: str, request_id: str) -> None:
     with tenant_session(svc.engine, TenantContext(tid)) as session:
         done = fulfilment.finish_if_complete(session, request_id=rid, registry=svc.registry)
     log.info("fulfilment_run_finished", tenant_id=tenant_id, request_id=request_id, complete=done)
+
+
+@celery_app.task(
+    name="idprivacy_worker.tasks.run_verification",
+    bind=True,
+    autoretry_for=(verification.RetryLater,),
+    retry_backoff=True,
+    retry_backoff_max=300,
+    max_retries=8,
+)
+def run_verification(self: object, tenant_id: str, request_id: str) -> None:
+    svc = services()
+    outcome = verification.run(
+        svc.engine,
+        tenant_id=UUID(tenant_id),
+        request_id=UUID(request_id),
+        factory=build_connector,
+        registry=svc.registry,
+        cipher=svc.cipher,
+    )
+    log.info(
+        "verification_finished",
+        tenant_id=tenant_id,
+        request_id=request_id,
+        outcome=outcome or "skipped",
+    )
+
+
+@celery_app.task(
+    name="idprivacy_worker.tasks.generate_evidence",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    max_retries=5,
+)
+def generate_evidence(self: object, tenant_id: str, request_id: str) -> None:
+    svc = services()
+    artifact = evidence.generate(
+        svc.engine,
+        tenant_id=UUID(tenant_id),
+        request_id=UUID(request_id),
+        store=svc.blob_store,
+        registry=svc.registry,
+        cipher=svc.cipher,
+    )
+    log.info(
+        "evidence_generated",
+        tenant_id=tenant_id,
+        request_id=request_id,
+        artifact_id=str(artifact) if artifact else "skipped",
+    )

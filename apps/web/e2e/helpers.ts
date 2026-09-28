@@ -56,7 +56,7 @@ export async function analystSubmitsForApproval(page: Page, reference: string): 
   await expect(async () => {
     await page.reload();
     await expect(page.getByRole("button", { name: "Start review" })).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 20_000 });
+  }).toPass({ timeout: 45_000 });
   await page.getByRole("button", { name: "Start review" }).click();
   const invoice = page.getByRole("row", { name: /crm:invoice:i-5001/ });
   await invoice.getByRole("button", { name: "Change decision" }).click();

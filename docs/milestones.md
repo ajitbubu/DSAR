@@ -77,7 +77,7 @@ Task generation from approved decisions, idempotency keys, dispatch with retry/b
 - `RETAIN` decisions → task `SKIPPED` with reason, no connector call.
 - A worker killed mid-dispatch (simulated) → the resumed task completes without duplication.
 
-## M7 — Verification and evidence
+## M7 — Verification and evidence ✅
 Rescan via `discover`, `verify_action`, reconciliation into `VerificationResult`, evidence package ZIP with manifest hashes, S3 storage, streamed download. Verification and evidence UIs, upload validation.
 
 **Acceptance**

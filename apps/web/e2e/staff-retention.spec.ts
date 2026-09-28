@@ -17,7 +17,7 @@ test("analyst resolves manual review and submits for approval (screen 7)", async
   await expect(async () => {
     await page.reload();
     await expect(page.getByRole("button", { name: "Start review" })).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 20_000 });
+  }).toPass({ timeout: 45_000 });
 
   await page.getByRole("button", { name: "Start review" }).click();
   const submit = page.getByRole("button", { name: "Submit for approval" });

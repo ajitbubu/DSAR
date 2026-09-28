@@ -6,7 +6,7 @@ A DPDP-first platform for automating Data Principal / Data Subject rights reques
 - Milestones and acceptance criteria: [`docs/milestones.md`](docs/milestones.md)
 - Open security and tenancy decisions: [`docs/open-decisions.md`](docs/open-decisions.md)
 
-**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) M3 (connector SDK, discovery, staff console) M4 (retention engine, legal holds, review) M5 (maker-checker approval) and M6 (idempotent fulfilment) complete.
+**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) M3 (connector SDK, discovery, staff console) M4 (retention engine, legal holds, review) M5 (maker-checker approval) M6 (idempotent fulfilment) and M7 (verification, evidence) complete.
 
 ## Layout
 
@@ -102,3 +102,11 @@ Every credential in this repo (`.env.example`, the Keycloak realm, `seaweedfs/s3
 - **Dispatch:** lock, re-check legal holds, commit `DISPATCHED`, call the connector outside any transaction with the same key on every attempt, record the execution append-only, then fetch and hash the connector's evidence. Retryable failures back off (up to 5 attempts). A crash mid-call resumes safely.
 - **Proven properties:** 5 concurrent dispatches give one side effect; two 503s then success gives 3 attempts, one effect, the same key; a timeout after apply is replayed, not re-applied; a worker killed mid-call resumes without duplication; a hold placed after approval skips the deletion.
 - **Screen 9** (`/ops/cases/{id}/fulfilment`): tasks, attempts, replays, evidence hashes, and retry (same key) for permanently failed tasks.
+
+## What M7 provides
+
+- **Verification:** each task is checked by the connector's `verify_action` *and* an independent rescan with the verified identifiers. Expected states are ABSENT, ANONYMIZED, RESTRICTED or PRESENT (for retained or held records). Results are append-only, one round per run. A connector that lies about deleting is caught and sent to `RECONCILIATION_REQUIRED`.
+- **Reconciliation:** an analyst re-runs failed records as a new round with new idempotency keys. Replaying the old key would just return the old, false result.
+- **Evidence package:** a deterministic ZIP with a manifest of per-file hashes, decisions and reasons, approvals, receipts and connector evidence, the verification report and a redacted audit timeline. It's stored privately in S3 under an opaque key, and the manifest hash is anchored in the audit chain. Downloads are streamed and audited, and return 404 across tenants.
+- **Uploads:** size, extension, MIME type and magic bytes must agree. The filename is discarded.
+- **Screens 10 and 11:** verification rounds with reconcile, the evidence package with hashes and download, and supporting-document upload.

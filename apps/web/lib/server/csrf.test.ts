@@ -12,6 +12,12 @@ const ok: CsrfInput = {
 };
 
 describe("checkCsrf", () => {
+  it("accepts multipart only where a route opts in", () => {
+    const multipart = { ...ok, contentType: "multipart/form-data; boundary=x" };
+    expect(checkCsrf(multipart)).toBe("content-type");
+    expect(checkCsrf({ ...multipart, allowedContentType: "multipart/form-data" })).toBeNull();
+  });
+
   it("allows a same-origin JSON request with matching tokens", () => {
     expect(checkCsrf(ok)).toBeNull();
   });

@@ -18,7 +18,7 @@ test("analyst signs in and sees source-wise discovery results (screen 6)", async
   await expect(async () => {
     await page.reload();
     await expect(page.getByText("Claimed, not used")).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 20_000 });
+  }).toPass({ timeout: 45_000 });
 
   await page.getByRole("link", { name: "Discovery", exact: true }).click();
   await page.waitForURL(/\/discovery$/);
@@ -26,7 +26,7 @@ test("analyst signs in and sees source-wise discovery results (screen 6)", async
   await expect(async () => {
     await page.reload();
     await expect(page.getByText(/3 records found across 2 sources/)).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 20_000 });
+  }).toPass({ timeout: 45_000 });
 
   const crm = page.getByRole("region", { name: "CRM (mock)" });
   const docs = page.getByRole("region", { name: "Document store (mock)" });

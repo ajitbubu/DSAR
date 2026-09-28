@@ -12,16 +12,9 @@ from sqlalchemy.exc import DBAPIError
 from idprivacy.domain.fulfilment import service as fulfilment
 from idprivacy.domain.policy.registry import PolicyRegistry
 from idprivacy.platform.db import TenantContext, tenant_session
-from tests.test_approvals import decide
 from tests.test_retention import status_of
 
 MAX = 5
-
-
-@pytest.fixture
-def approved(client: TestClient, pending) -> dict[str, Any]:
-    assert decide(client, pending["rid"], pending["approver"]).status_code == 201
-    return pending
 
 
 def tasks(engine: Engine, rid: uuid.UUID) -> dict[str, Any]:

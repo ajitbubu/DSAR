@@ -3,6 +3,7 @@
 Validation errors never echo the submitted input back (it may be personal data).
 """
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -25,21 +26,29 @@ def problem(
 class BodySizeLimitMiddleware:
     """Rejects bodies over ``max_bytes`` with 413, whether declared or streamed."""
 
-    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+    def __init__(
+        self, app: ASGIApp, max_bytes: int, overrides: dict[str, int] | None = None
+    ) -> None:
         self.app = app
-        self.max_bytes = max_bytes
+        self.default_max = max_bytes
+        self.overrides = [(re.compile(p), n) for p, n in (overrides or {}).items()]
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        path = scope.get("path", "")
+        limit = next((n for p, n in self.overrides if p.match(path)), self.default_max)
+        await self._limited(scope, receive, send, limit)
+
+    async def _limited(self, scope: Scope, receive: Receive, send: Send, limit: int) -> None:
         for name, value in scope.get("headers", []):
             if name == b"content-length":
                 try:
                     declared = int(value)
                 except ValueError:
-                    declared = self.max_bytes + 1
-                if declared > self.max_bytes:
+                    declared = limit + 1
+                if declared > limit:
                     await problem(413, "Payload Too Large")(scope, receive, send)
                     return
 
@@ -50,7 +59,7 @@ class BodySizeLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > self.max_bytes:
+                if received > limit:
                     # HTTPException passes through FastAPI's body parsing to the handlers.
                     raise StarletteHTTPException(413, "Payload Too Large")
             return message

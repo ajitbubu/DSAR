@@ -534,6 +534,7 @@ class FulfilmentTask(Base):
     retention_decision_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     approval_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     connector_config_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    round: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     action: Mapped[str] = mapped_column(String(16), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -575,3 +576,39 @@ class ConnectorExecution(Base):
     evidence_sha256: Mapped[str | None] = mapped_column(String(64))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+# ---------- M7: verification and evidence --------------------------------------------
+
+
+class VerificationResult(Base):
+    __tablename__ = "verification_result"
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    fulfilment_task_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    data_match_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    round: Mapped[int] = mapped_column(Integer, nullable=False)
+    expected: Mapped[str] = mapped_column(String(16), nullable=False)
+    observed_verify: Mapped[str | None] = mapped_column(String(16))
+    observed_rescan: Mapped[str | None] = mapped_column(String(16))
+    outcome: Mapped[str] = mapped_column(String(8), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class EvidenceArtifact(Base):
+    __tablename__ = "evidence_artifact"
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    object_key: Mapped[str] = mapped_column(String(300), nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    manifest_sha256: Mapped[str | None] = mapped_column(String(64))
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    media_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    file_ext: Mapped[str] = mapped_column(String(8), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    retain_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # D-4
+    created_at: Mapped[datetime] = _created_at()

@@ -21,6 +21,13 @@
 - **Download:** streamed through the API after authz (`AUDITOR`, `PRIVACY_ANALYST`, `APPROVER` of the tenant), with `Content-Disposition: attachment` and `nosniff`. Each download is audited. No presigned URLs in v1, so no bearer tokens appear in URLs (D-8).
 - **Uploads** (supporting docs): size limit, extension + MIME + magic-byte allowlist validated server-side before storage, server-generated key. AV scanning depends on D-10.
 
+## Implementation notes (M7)
+- Package files: `case.json` (masked identifiers), `jurisdiction.json`, `discovery.json` (pointers and fingerprints), `decisions.json` (full append-only history with reasons), `approvals.json`, `fulfilment.json` (keys, receipts, rounds), `connector_evidence.json`, `verification_report.json`, `audit_timeline.json` (redacted), `manifest.json` (per-file SHA-256) and `manifest.sha256`.
+- The ZIP is deterministic (fixed entry order and timestamps, canonical JSON). The manifest hash is written to the audit chain as `evidence.package_generated`.
+- Keys look like `tenants/{tenant}/requests/{request}/{uuid}.{ext}`, enforced by a CHECK. Downloads stream through the API with `Content-Disposition: attachment`, `nosniff` and `X-Content-SHA256`, and each one is audited. Artifact rows are append-only.
+- Uploads require the extension, declared MIME type and file signature to agree (PDF, PNG, JPEG), up to 10 MB (a per-route body limit), and reject simple polyglots. The original filename is never stored. Malware scanning remains decision D-10.
+- Manifest signing with a KMS key is still pending decision D-3.
+
 ## Consequences
 + Evidence is tamper-evident (hash in manifest + audit chain) and never publicly reachable.
 − Streaming through the API costs API bandwidth. That's acceptable at DSAR volumes.
