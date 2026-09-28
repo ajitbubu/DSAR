@@ -9,6 +9,7 @@ export const STAFF_MUTATIONS: readonly RegExp[] = [
   new RegExp(`^/v1/cases/${UUID}/matches/${UUID}/retention-decisions$`),
   new RegExp(`^/v1/cases/${UUID}/discovery/retry$`),
   new RegExp(`^/v1/cases/${UUID}/approvals$`),
+  new RegExp(`^/v1/cases/${UUID}/fulfilment-tasks/${UUID}/retry$`),
   /^\/v1\/legal-holds$/,
   new RegExp(`^/v1/legal-holds/${UUID}/release$`),
 ];

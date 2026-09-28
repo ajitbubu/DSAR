@@ -513,3 +513,65 @@ class Approval(Base):
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
     response: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = _created_at()
+
+
+# ---------- M6: fulfilment ---------------------------------------------------------
+
+
+class FulfilmentTask(Base):
+    __tablename__ = "fulfilment_task"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "idempotency_key", name="uq_fulfilment_task_key"),
+        UniqueConstraint(
+            "tenant_id", "data_match_id", "approval_id", name="uq_fulfilment_task_per_approval"
+        ),
+        UniqueConstraint("tenant_id", "id", name="uq_fulfilment_task_tenant_id_id"),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    data_match_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    retention_decision_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    approval_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    connector_config_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    action: Mapped[str] = mapped_column(String(16), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    skip_reason: Mapped[str | None] = mapped_column(String(200))
+    receipt_id: Mapped[str | None] = mapped_column(String(64))
+    outcome: Mapped[str | None] = mapped_column(String(20))
+    last_error_code: Mapped[str | None] = mapped_column(String(40))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _created_at()
+
+
+class ConnectorExecution(Base):
+    """Append-only record of every connector call made for a fulfilment task."""
+
+    __tablename__ = "connector_execution"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "fulfilment_task_id",
+            "operation",
+            "attempt_no",
+            name="uq_connector_execution_attempt",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    fulfilment_task_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    operation: Mapped[str] = mapped_column(String(20), nullable=False)
+    attempt_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    outcome: Mapped[str] = mapped_column(String(20), nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(40))
+    receipt_id: Mapped[str | None] = mapped_column(String(64))
+    replayed: Mapped[bool | None] = mapped_column()
+    evidence: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    evidence_sha256: Mapped[str | None] = mapped_column(String(64))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

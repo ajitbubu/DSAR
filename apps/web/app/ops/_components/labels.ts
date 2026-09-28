@@ -10,6 +10,12 @@ export const STATUS_LABEL: Record<string, string> = {
   PENDING_APPROVAL: "Awaiting approval",
   APPROVED: "Approved",
   REJECTED: "Returned for rework",
+  FULFILMENT_IN_PROGRESS: "Fulfilment running",
+  VERIFICATION_IN_PROGRESS: "Verifying outcome",
+  RECONCILIATION_REQUIRED: "Needs reconciliation",
+  VERIFIED_COMPLETE: "Verified",
+  EVIDENCE_GENERATED: "Evidence ready",
+  RESPONDED: "Requester notified",
   PENDING_MANUAL_HANDLING: "Manual handling",
   CANCELLED: "Withdrawn",
   CLOSED: "Closed",
@@ -20,7 +26,8 @@ export function statusTone(status: string): string {
   if (["DISCOVERY_COMPLETE", "CLOSED", "VERIFIED_COMPLETE", "SUCCEEDED"].includes(status)) {
     return "status ok";
   }
-  if (status === "FAILED") return "status bad";
+  if (["FAILED", "FAILED_FINAL"].includes(status)) return "status bad";
+  if (status === "FAILED_RETRYABLE") return "status warn";
   return "status";
 }
 

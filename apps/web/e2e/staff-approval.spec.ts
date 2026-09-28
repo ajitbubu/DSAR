@@ -28,9 +28,19 @@ test("a separate approver authorises the decisions (screen 8)", async ({ browser
   await expect(page).toHaveURL(`${caseUrl}/approval`);
   await expect(page.getByText(/act on 2 records marked Delete/)).toBeVisible();
   await page.getByRole("button", { name: "Approve" }).click();
-  await expect(page.getByText("Approved", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Approve" })).toHaveCount(0);
   await expect(page.locator("li").filter({ hasText: "approved" })).toHaveCount(1);
+
+  // Screen 9: the worker executes the approved actions against the connectors.
+  await page.getByRole("link", { name: "Fulfilment", exact: true }).click();
+  await page.waitForURL(/\/fulfilment$/);
+  await expect(async () => {
+    await page.reload();
+    await expect(page.getByText("succeeded 2")).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(page.getByRole("row", { name: /crm:invoice:i-5001/ })
+    .getByText("RETAIN: LEGAL_OBLIGATION")).toBeVisible();
+  await expect(page.getByText(/^Evidence: succeeded/).first()).toBeVisible();
 });
 
 test("a rejection sends the case back for rework", async ({ browser }) => {

@@ -67,7 +67,7 @@ Case details, the analyst "submit for approval" action, the approval queue, appr
 - Rejection returns the case to `UNDER_REVIEW` with the comment audited. (Implemented as REJECT → `REJECTED`, then the analyst's REWORK → `UNDER_REVIEW`, exactly as DPDP pack 1.0.0 defines it. A one-step return needs a new pack version.)
 - The authz matrix covers each role × each approval endpoint, including cross-tenant.
 
-## M6 — Fulfilment orchestration
+## M6 — Fulfilment orchestration ✅
 Task generation from approved decisions, idempotency keys, dispatch with retry/backoff, connector execution records and evidence capture. Fulfilment execution UI plus manual retry.
 
 **Acceptance**

@@ -45,3 +45,9 @@ def test_verified_case_topic_is_routed_to_the_pipeline_task() -> None:
 
     assert TOPIC_TASKS["case.verified"] == "idprivacy_worker.tasks.process_verified_case"
     assert TOPIC_TASKS["case.verified"] in celery_app.tasks
+
+
+def test_fulfilment_topic_is_routed() -> None:
+    from idprivacy_worker.tasks import TOPIC_TASKS
+
+    assert TOPIC_TASKS["case.fulfilment_requested"] in celery_app.tasks

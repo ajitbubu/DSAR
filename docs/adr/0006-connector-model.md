@@ -39,6 +39,12 @@ class Connector(Protocol):
 - The conformance kit (`idprivacy_connector_sdk.testing`) runs read-only checks first, then destructive ones: pagination completeness, stable fingerprints, duplicate-key replay, 8-way concurrent same-key calls, `ALREADY_ABSENT` on re-delete, evidence round-trip, malformed-input rejection, and authentication. A deliberately broken connector test proves the kit catches failures.
 - Discovery calls connectors **outside** DB transactions, then persists matches with `ON CONFLICT DO NOTHING`, so retries never duplicate. Only identifiers whose assurance the pinned pack allows (`VERIFIED` in DPDP 1.0.0) are sent.
 
+## Implementation notes (M6)
+- Tasks are planned in the approval transaction. The key is `sha256(tenant | task | action | decision)`. `RETAIN` becomes `SKIPPED` with the exception code as its reason and no connector call.
+- Dispatch locks the task (`FOR UPDATE SKIP LOCKED`), re-checks legal holds (a hold placed after approval → `SKIPPED: LEGAL_HOLD`), commits `DISPATCHED` with the incremented attempt, then calls the connector **outside** any transaction. A crash leaves the task `DISPATCHED`, and the next run reuses the same key.
+- Every completed call is recorded append-only in `connector_execution`. The evidence insert is `ON CONFLICT DO NOTHING`, because concurrent dispatchers may both capture it.
+- `FAILED_FINAL` is terminal: after 5 attempts, or a non-retryable error. The case then moves to verification, where the independent rescan (M7) finds the record still present and moves to `RECONCILIATION_REQUIRED`, reopening fulfilment. A failed deletion can't close as done.
+
 ## Consequences
 + Destructive calls are safe under retries, worker crashes and duplicate deliveries.
 − Every real connector must implement key storage on its side, or wrap a target system that supports idempotency natively.

@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     dp_session_idle_seconds: int = 1800
     dp_session_max_seconds: int = 86400
 
+    # Fulfilment (M6): attempts per destructive task before it fails permanently.
+    fulfilment_max_attempts: int = 5
+
     @model_validator(mode="after")
     def _refuse_dev_stand_ins_outside_dev(self) -> "Settings":
         errors: list[str] = []

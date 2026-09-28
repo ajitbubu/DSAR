@@ -11,11 +11,15 @@ export const DEV_PASSWORD: string = JSON.parse(
                                     import.meta.url)), "utf8"),
 ).users[0].credentials[0].value;
 
+const MOCKS = process.env.E2E_MOCK_CONNECTORS_URL ?? "http://localhost:8100";
+
+/** Resets rate limits and the mock systems' records (fulfilment really deletes them). */
 export async function resetRateLimits(request: APIRequestContext) {
   const res = await request.post(`${API}/v1/test-support/rate-limits/reset`, {
     headers: { "X-Internal-Auth": BFF_SECRET },
   });
   expect(res.status()).toBe(204);
+  expect((await request.post(`${MOCKS}/__test__/reset`)).status()).toBe(200);
 }
 
 /** Submits and verifies an erasure request through the Data Principal screens. */

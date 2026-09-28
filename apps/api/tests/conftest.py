@@ -310,3 +310,32 @@ def evaluated(client: TestClient, make_tenant, connector_factory) -> tuple[uuid.
     discover_all(client, tenant, rid, connector_factory)
     evaluate_case(client, tenant, rid)
     return tenant, rid
+
+
+@pytest.fixture
+def pending(
+    client: TestClient,
+    evaluated,
+    provision_user,
+    make_token,  # type: ignore[no-untyped-def]
+    migrator_engine: Engine,
+) -> dict[str, Any]:
+    """Analyst reviews, retains the invoice and submits; a separate approver is ready."""
+    from tests.test_retention import override, transition
+
+    tenant, rid = evaluated
+    analyst_id, analyst_sub = provision_user(tenant, ["PRIVACY_ANALYST"])
+    analyst = bearer(make_token(analyst_sub))
+    transition(client, rid, "BEGIN_REVIEW", analyst, migrator_engine)
+    assert override(client, rid, "crm:invoice:i-5001", analyst, migrator_engine).status_code == 201
+    assert (
+        transition(client, rid, "SUBMIT_FOR_APPROVAL", analyst, migrator_engine).status_code == 200
+    )
+    _, approver_sub = provision_user(tenant, ["APPROVER"])
+    return {
+        "tenant": tenant,
+        "rid": rid,
+        "analyst": analyst,
+        "analyst_id": analyst_id,
+        "approver": bearer(make_token(approver_sub)),
+    }

@@ -239,9 +239,10 @@ erDiagram
     uuid id PK
     uuid tenant_id FK
     uuid request_id FK
-    uuid data_match_id FK
+    uuid data_match_id FK "UK(match, approval)"
     uuid retention_decision_id FK
     uuid approval_id FK
+    uuid connector_config_id FK
     string action "DELETE|ANONYMIZE|RESTRICT|NOOP_RETAIN"
     string idempotency_key "UK"
     string status "PENDING|DISPATCHED|SUCCEEDED|FAILED_RETRYABLE|FAILED_FINAL|SKIPPED|CANCELLED"

@@ -20,28 +20,6 @@ def _user(
     return uid, bearer(make_token(sub))
 
 
-@pytest.fixture
-def pending(
-    client: TestClient, evaluated, provision_user, make_token, migrator_engine: Engine
-) -> dict[str, Any]:
-    """Analyst A reviews, retains the invoice, and submits for approval."""
-    tenant, rid = evaluated
-    analyst_id, analyst = _user(provision_user, make_token, tenant, "PRIVACY_ANALYST")
-    transition(client, rid, "BEGIN_REVIEW", analyst, migrator_engine)
-    assert override(client, rid, "crm:invoice:i-5001", analyst, migrator_engine).status_code == 201
-    assert (
-        transition(client, rid, "SUBMIT_FOR_APPROVAL", analyst, migrator_engine).status_code == 200
-    )
-    _, approver = _user(provision_user, make_token, tenant, "APPROVER")
-    return {
-        "tenant": tenant,
-        "rid": rid,
-        "analyst": analyst,
-        "analyst_id": analyst_id,
-        "approver": approver,
-    }
-
-
 def snapshot(client: TestClient, rid: uuid.UUID, headers: dict[str, str]) -> tuple[int, str]:
     view = client.get(f"/v1/cases/{rid}/retention", headers=headers).json()
     return view["case_version"], view["decision_set_sha256"]
@@ -86,7 +64,8 @@ def test_separate_approver_approves(client: TestClient, pending, migrator_engine
     r = decide(client, rid, approver)
     assert r.status_code == 201 and r.json()["outcome"] == "APPROVED"
     assert r.json()["submitted_by"] == str(pending["analyst_id"])
-    assert status_of(migrator_engine, rid)[0] == "APPROVED"
+    # Approval plans fulfilment in the same transaction.
+    assert status_of(migrator_engine, rid)[0] == "FULFILMENT_IN_PROGRESS"
     history = client.get(f"/v1/cases/{rid}/approvals", headers=pending["analyst"]).json()
     assert [h["outcome"] for h in history] == ["APPROVED"]
     with migrator_engine.connect() as conn:
@@ -111,7 +90,7 @@ def test_replayed_key_returns_identical_response_once(
     assert first.status_code == again.status_code == 201
     assert first.json() == again.json()
     assert approvals_count(migrator_engine, rid) == 1
-    assert status_of(migrator_engine, rid)[0] == "APPROVED"
+    assert status_of(migrator_engine, rid)[0] == "FULFILMENT_IN_PROGRESS"
     clash = decide(
         client,
         rid,

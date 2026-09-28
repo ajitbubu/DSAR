@@ -1,7 +1,7 @@
 """Named workflow guards referenced by policy packs (ADR-0005).
 
-Packs stay declarative: they name guards, and the platform implements them. A guard
-whose milestone hasn't landed yet fails closed, so its transition is refused.
+Packs stay declarative: they name guards, and the platform implements them. A pack
+naming an unknown guard is rejected when it loads.
 """
 
 from collections.abc import Callable
@@ -21,13 +21,6 @@ class GuardResult:
 Guard = Callable[[Session, PrivacyRequest], GuardResult]
 
 
-def _not_implemented(milestone: str) -> Guard:
-    def guard(_session: Session, _request: PrivacyRequest) -> GuardResult:
-        return GuardResult(False, f"guard not implemented until {milestone}")
-
-    return guard
-
-
 def _no_unresolved_manual_review(session: Session, request: PrivacyRequest) -> GuardResult:
     from idprivacy.domain.retention.service import unresolved_manual_reviews
 
@@ -44,8 +37,15 @@ def _approval_valid_for_version(session: Session, request: PrivacyRequest) -> Gu
     return GuardResult(ok, reason)
 
 
+def _all_fulfilment_tasks_terminal(session: Session, request: PrivacyRequest) -> GuardResult:
+    from idprivacy.domain.fulfilment.service import all_terminal
+
+    done, open_ = all_terminal(session, request.id)
+    return GuardResult(True) if done else GuardResult(False, f"{open_} task(s) still running")
+
+
 GUARDS: dict[str, Guard] = {
     "no_unresolved_manual_review": _no_unresolved_manual_review,
     "approval_valid_for_version": _approval_valid_for_version,
-    "all_fulfilment_tasks_terminal": _not_implemented("M6"),
+    "all_fulfilment_tasks_terminal": _all_fulfilment_tasks_terminal,
 }

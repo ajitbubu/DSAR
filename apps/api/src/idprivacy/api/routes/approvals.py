@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from idprivacy.domain.approvals import service as approvals
 from idprivacy.domain.cases.lifecycle import CaseStatus
+from idprivacy.domain.fulfilment import service as fulfilment
 from idprivacy.domain.policy.workflow import GuardFailed, TransitionForbidden, fire
 from idprivacy.platform.auth.deps import Requires, get_tenant_db
 from idprivacy.platform.auth.rbac import Permission, StaffPrincipal
@@ -172,10 +173,16 @@ def decide(
     except IntegrityError:
         raise HTTPException(status.HTTP_409_CONFLICT, "Already decided") from None
     event = "APPROVE" if body.outcome == "APPROVED" else "REJECT"
+    registry = request.app.state.services.registry
     try:
-        fire(db, case, event, actor=principal, registry=request.app.state.services.registry)
+        fire(db, case, event, actor=principal, registry=registry)
     except TransitionForbidden:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden") from None
     except GuardFailed as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, exc.reason) from None
+    if case.status == CaseStatus.APPROVED:
+        # Same transaction: an approved case always has its fulfilment plan.
+        approval = db.get(Approval, approval_id)
+        assert approval is not None
+        fulfilment.plan(db, request=case, approval=approval, registry=registry)
     return JSONResponse(response, status_code=status.HTTP_201_CREATED)

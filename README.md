@@ -6,7 +6,7 @@ A DPDP-first platform for automating Data Principal / Data Subject rights reques
 - Milestones and acceptance criteria: [`docs/milestones.md`](docs/milestones.md)
 - Open security and tenancy decisions: [`docs/open-decisions.md`](docs/open-decisions.md)
 
-**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) M3 (connector SDK, discovery, staff console) M4 (retention engine, legal holds, review) and M5 (maker-checker approval) complete.
+**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) M3 (connector SDK, discovery, staff console) M4 (retention engine, legal holds, review) M5 (maker-checker approval) and M6 (idempotent fulfilment) complete.
 
 ## Layout
 
@@ -95,3 +95,10 @@ Every credential in this repo (`.env.example`, the Keycloak realm, `seaweedfs/s3
 - **Approval** (`POST /v1/cases/{id}/approvals`, `Idempotency-Key` required): bound to the case version and decision-set hash (409 if either changed, including a late legal hold). The approver must differ from the submitter and must not have authored any override in the set (403). The DB also enforces `approved_by <> submitted_by` and one decision per submission. Replaying a key returns the stored response verbatim. Concurrent approvers serialise on the case row, so exactly one wins.
 - **Second enforcement:** the pack guard `approval_valid_for_version` re-checks everything when APPROVE fires. The generic transitions endpoint refuses APPROVE and REJECT, so there's no maker-checker bypass.
 - **Screens:** the approval queue (`/ops/approvals`, flags cases you submitted), and the approval screen with the decision set, approve/reject (a rejection needs a comment) and history. "Resume review" appears after a rejection.
+
+## What M6 provides
+
+- **Planning:** in the approval transaction, one task per current decision with a deterministic idempotency key. RETAIN is `SKIPPED` with its reason. The case moves to `FULFILMENT_IN_PROGRESS`.
+- **Dispatch:** lock, re-check legal holds, commit `DISPATCHED`, call the connector outside any transaction with the same key on every attempt, record the execution append-only, then fetch and hash the connector's evidence. Retryable failures back off (up to 5 attempts). A crash mid-call resumes safely.
+- **Proven properties:** 5 concurrent dispatches give one side effect; two 503s then success gives 3 attempts, one effect, the same key; a timeout after apply is replayed, not re-applied; a worker killed mid-call resumes without duplication; a hold placed after approval skips the deletion.
+- **Screen 9** (`/ops/cases/{id}/fulfilment`): tasks, attempts, replays, evidence hashes, and retry (same key) for permanently failed tasks.

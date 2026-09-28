@@ -6,6 +6,7 @@ import structlog
 
 from idprivacy.domain.discovery import service as discovery
 from idprivacy.domain.discovery.connectors import build_connector
+from idprivacy.domain.fulfilment import service as fulfilment
 from idprivacy.domain.intake.pipeline import process_verified_case as run_pipeline
 from idprivacy.domain.retention import service as retention
 from idprivacy.platform.db import TenantContext, tenant_session
@@ -19,6 +20,7 @@ TOPIC_TASKS: dict[str, str] = {
     "system.noop": "idprivacy_worker.tasks.noop",
     "case.verified": "idprivacy_worker.tasks.process_verified_case",
     "case.discovery_requested": "idprivacy_worker.tasks.run_discovery",
+    "case.fulfilment_requested": "idprivacy_worker.tasks.run_fulfilment",
 }
 
 
@@ -100,3 +102,40 @@ def run_discovery(self: object, tenant_id: str, request_id: str) -> None:
             assert case is not None
             retention.evaluate_case(session, request=case, registry=svc.registry)
     log.info("discovery_run_finished", tenant_id=tenant_id, request_id=request_id, complete=done)
+
+
+@celery_app.task(
+    name="idprivacy_worker.tasks.run_fulfilment",
+    bind=True,
+    autoretry_for=(RetryableConnectorFailure,),
+    retry_backoff=True,
+    retry_backoff_max=300,
+    max_retries=8,
+)
+def run_fulfilment(self: object, tenant_id: str, request_id: str) -> None:
+    """Dispatch every open task. Safe to redeliver: keys make connector calls idempotent."""
+    svc = services()
+    tid, rid = UUID(tenant_id), UUID(request_id)
+    with tenant_session(svc.engine, TenantContext(tid)) as session:
+        task_ids = fulfilment.pending_tasks(session, rid)
+    retryable = False
+    for task_id in task_ids:
+        result = fulfilment.dispatch(
+            svc.engine,
+            tenant_id=tid,
+            task_id=task_id,
+            factory=build_connector,
+            max_attempts=svc.settings.fulfilment_max_attempts,
+        )
+        log.info(
+            "fulfilment_task_dispatched",
+            tenant_id=tenant_id,
+            task_id=str(task_id),
+            status=result.status,
+        )
+        retryable |= result.retryable or result.status == "BUSY"
+    if retryable:
+        raise RetryableConnectorFailure(request_id)
+    with tenant_session(svc.engine, TenantContext(tid)) as session:
+        done = fulfilment.finish_if_complete(session, request_id=rid, registry=svc.registry)
+    log.info("fulfilment_run_finished", tenant_id=tenant_id, request_id=request_id, complete=done)
