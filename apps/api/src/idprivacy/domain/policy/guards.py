@@ -52,6 +52,23 @@ def _disclosure_reviewed(session: Session, request: PrivacyRequest) -> GuardResu
     return GuardResult(False, problem) if problem else GuardResult(True)
 
 
+def _access_report_stored(session: Session, request: PrivacyRequest) -> GuardResult:
+    from sqlalchemy import select
+
+    from idprivacy.domain.disclosure.report import report_for_approval
+    from idprivacy.platform.models import Approval
+
+    approval_id = session.execute(
+        select(Approval.id)
+        .where(Approval.request_id == request.id, Approval.outcome == "APPROVED")
+        .order_by(Approval.created_at.desc(), Approval.id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if approval_id is None or report_for_approval(session, approval_id) is None:
+        return GuardResult(False, "no stored report for the approved disclosure")
+    return GuardResult(True)
+
+
 def _not_implemented_yet(milestone: str) -> Guard:
     """For guards a published pack names before the platform implements them: fail closed."""
 
@@ -67,5 +84,5 @@ GUARDS: dict[str, Guard] = {
     "all_fulfilment_tasks_terminal": _all_fulfilment_tasks_terminal,
     # Right to Access (docs/milestones-access.md).
     "disclosure_reviewed": _disclosure_reviewed,
-    "access_report_stored": _not_implemented_yet("access milestone A3"),
+    "access_report_stored": _access_report_stored,
 }

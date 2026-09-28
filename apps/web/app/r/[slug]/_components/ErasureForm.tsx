@@ -12,6 +12,7 @@ import {
 } from "@/lib/validation";
 
 const INITIAL: ErasureFormValues = {
+  right: "ERASURE",
   fullName: "",
   channel: "EMAIL",
   contact: "",
@@ -99,6 +100,24 @@ export function ErasureForm({ slug }: { slug: string }) {
         {formError && <div className="alert error-box" role="alert">{formError}</div>}
       </div>
 
+      <fieldset className="field plain">
+        <legend className="legend">What would you like us to do?</legend>
+        <div className="segmented">
+          {([["ERASURE", "Delete my data"], ["ACCESS", "Get a copy of my data"]] as const).map(([r, label]) => (
+            <label key={r}>
+              <input type="radio" name="right" value={r} checked={values.right === r}
+                     onChange={() => set("right", r)} />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+        <p className="hint">
+          {values.right === "ERASURE"
+            ? "We'll delete what we can. Some records may have to be kept by law; if so, we'll tell you which and why."
+            : "We'll send you a copy of the personal data we hold about you, and explain how it's used and shared."}
+        </p>
+      </fieldset>
+
       <div className="field">
         <label htmlFor="fullName">Full name</label>
         <input id="fullName" type="text" autoComplete="name" maxLength={LIMITS.fullName}
@@ -169,7 +188,7 @@ export function ErasureForm({ slug }: { slug: string }) {
                  aria-describedby={describedBy("consent")} />
           <label htmlFor="consent">
             I agree that the details above can be used to verify my identity and handle this
-            erasure request.
+            request.
           </label>
         </div>
         {errors.consent && <p id="consent-error" className="error">{errors.consent}</p>}

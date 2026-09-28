@@ -87,6 +87,8 @@ class PublicLimits:
     submit_per_contact: Limit  # stops OTP-bombing one person
     confirm_per_ip: Limit
     resend_per_ip: Limit
+    sign_in_per_ip: Limit
+    sign_in_per_contact: Limit
 
 
 def _parse(scope: str, spec: str) -> Limit:
@@ -100,4 +102,6 @@ def public_limits(settings: "Settings") -> PublicLimits:
         submit_per_contact=_parse("submit:contact", settings.rate_limit_submit_per_contact),
         confirm_per_ip=_parse("confirm:ip", settings.rate_limit_confirm_per_ip),
         resend_per_ip=_parse("resend:ip", settings.rate_limit_resend_per_ip),
+        sign_in_per_ip=_parse("sign_in:ip", settings.rate_limit_sign_in_per_ip),
+        sign_in_per_contact=_parse("sign_in:contact", settings.rate_limit_sign_in_per_contact),
     )

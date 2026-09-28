@@ -41,7 +41,7 @@ The second executable right. It reuses intake, OTP verification, jurisdiction, i
 - An approved access case stays `APPROVED`. A3 builds the report from there instead of erasure fulfilment.
 - UI: the case's Disclosure tab, a disclosure summary on the approval page, and `/ops/register`. Playwright spec `e2e/access-disclosure.spec.ts`. The requester-facing choice of right arrives in A3, so the spec submits the request through the public API.
 
-## A3 — Report delivery to the requester
+## A3 — Report delivery to the requester ✅
 
 - Build the approved report (JSON plus a readable HTML rendering), encrypt it and store it privately. The requester downloads it through the existing tracking session (BFF-streamed, audited, download-count and expiry limits).
 - The staff evidence package records disclosure hashes, approvals and delivery events, without content. The completion response and case closure work as for erasure.
@@ -51,6 +51,14 @@ The second executable right. It reuses intake, OTP verification, jurisdiction, i
 - The requester can download only their own report, only within its validity, and only through a live session. Cross-session and cross-tenant access get 404, and expiry gets 410.
 - The report decrypts only with the tenant key. The stored object isn't readable plaintext.
 - Full ACCESS end-to-end in Playwright. `make logscan` and the PII scans stay clean.
+
+**As built**
+- On approval of a case with a disclosure, the approval transaction fires `START_FULFILMENT` and queues `case.report_requested`. The worker builds the report from the approved export, with exclusions applied and the processing summary from the register. It renders JSON plus self-contained, script-free, escaped HTML, encrypts each under the tenant key, and stores them privately (`access_report`). The staff evidence package is then built with a new `disclosure.json` (export hashes, the exclusion history, register versions, report hashes, no content), which fires `REPORT_READY`. The completion message and closure follow the erasure path. The message has counts and dates only.
+- The requester downloads with `GET /v1/public/case/report/{json|html}` over their tracking session. Each download is counted atomically and audited. Expiry, the download limit or a purge gives 410. Responses are attachments with `no-store` and `nosniff`, and HTML gets `CSP: sandbox`. The status page shows availability and downloads left. The app role can update only `download_count` and `purged_at`.
+- **Returning sign-in** (needed because sessions last at most 24 hours): `POST /v1/public/sessions` with reference and contact always answers the same way, and sends a code only when both match a verified request. It's rate limited per IP and per contact. The resulting `SIGN_IN` challenge opens a new session without touching case state, and a lockout doesn't fail the case.
+- `make purge-reports` (run it daily) deletes the objects of expired or used-up reports. `BlobStore.delete` was added for it.
+- UI: the request form asks "Delete my data" or "Get a copy of my data", there's a "Return to your request" page, download buttons on the status page, and report status on the staff Disclosure tab. Playwright: `e2e/access-end-to-end.spec.ts`.
+- D-25 and D-26 run on their stated defaults (14 days, 5 downloads; JSON plus accessible HTML, in English) until decided.
 
 ## New open decisions
 

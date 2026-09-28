@@ -16,13 +16,14 @@ from sqlalchemy.orm import Session
 from idprivacy.config import DEV_ENVIRONMENTS, Settings
 from idprivacy.domain.audit import service as audit
 from idprivacy.domain.cases.lifecycle import CaseStatus
+from idprivacy.domain.disclosure.report import latest_report
 from idprivacy.domain.intake import service as intake
 from idprivacy.domain.policy.registry import PolicyRegistry
 from idprivacy.domain.policy.workflow import SystemActor, fire
 from idprivacy.domain.retention.service import current_decisions
 from idprivacy.domain.verification.service import latest_tasks
 from idprivacy.platform.crypto import FieldCipher
-from idprivacy.platform.models import Communication, PrivacyRequest
+from idprivacy.platform.models import AccessReport, Communication, PrivacyRequest
 
 ACTOR = SystemActor("system:communications")
 TEMPLATE = "erasure.completed"
@@ -58,7 +59,31 @@ def _plural(n: int, one: str, many: str) -> str:
     return f"{n} {one if n == 1 else many}"
 
 
+def compose_access(request: PrivacyRequest, report: AccessReport) -> str:
+    """No personal data: counts and dates only. The content is in the report itself."""
+    parts = [
+        f"Your copy of the personal data we hold about you (request {request.display_id}) "
+        "is ready.",
+        f"It covers {_plural(report.record_count, 'record', 'records')}.",
+    ]
+    withheld = report.withheld_records + report.withheld_fields
+    if withheld:
+        parts.append(
+            f"We withheld {_plural(withheld, 'item', 'items')} that include other people's "
+            "personal data or are otherwise exempt."
+        )
+    parts.append(
+        "Download it from your request page, signing in again with your reference if "
+        f"needed, before {report.expires_at.strftime('%d %B %Y')}. You can download it "
+        f"up to {report.max_downloads} times."
+    )
+    return " ".join(parts)[:2000]
+
+
 def compose(session: Session, request: PrivacyRequest, registry: PolicyRegistry) -> str:
+    report = latest_report(session, request.id)
+    if report is not None:
+        return compose_access(request, report)
     assert request.policy_pack_id is not None
     pack = registry.by_id(session, request.policy_pack_id).pack
     labels = {e.code: e.label for e in pack.exception_codes}

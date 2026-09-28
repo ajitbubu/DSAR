@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Chrome } from "./_components/Chrome";
 import { ErasureForm } from "./_components/ErasureForm";
@@ -10,12 +11,14 @@ export default async function RequestPage({ params }: { params: Promise<{ slug: 
   if (!SLUG.test(slug)) notFound();
   return (
     <Chrome step={0}>
-      <h1>Request erasure of your personal data</h1>
+      <h1>Make a request about your personal data</h1>
       <p className="lede">
-        Ask us to delete personal data we hold about you. Some records may have to be kept by
-        law; if so, we&apos;ll tell you which and why.
+        Ask us to delete the personal data we hold about you, or to send you a copy of it.
       </p>
       <ErasureForm slug={slug} />
+      <p className="hint">
+        Already made a request? <Link href={`/r/${slug}/signin`}>Return to your request</Link>.
+      </p>
     </Chrome>
   );
 }

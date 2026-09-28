@@ -26,6 +26,17 @@ type DisclosureRecord = {
   fields: Field[];
 };
 export type DisclosureView = {
+  report: {
+    id: string;
+    created_at: string;
+    expires_at: string;
+    download_count: number;
+    max_downloads: number;
+    purged_at: string | null;
+    record_count: number;
+    withheld_records: number;
+    withheld_fields: number;
+  } | null;
   export: {
     id: string;
     round: number;
@@ -110,6 +121,15 @@ export default async function DisclosurePage({ params }: { params: Promise<{ id:
         <ReviewActions caseId={id} status={c.status} version={c.version} unresolved={0} />
       </div>
       {pending && <RefreshWhilePending />}
+      {v.report && (
+        <div className="alert" role="status">
+          Report sent to the requester {when(v.report.created_at)}: {v.report.record_count} records,{" "}
+          {v.report.withheld_records + v.report.withheld_fields} items withheld.{" "}
+          {v.report.purged_at
+            ? `Deleted ${when(v.report.purged_at)}.`
+            : `Downloaded ${v.report.download_count} of ${v.report.max_downloads} times; available until ${when(v.report.expires_at)}.`}
+        </div>
+      )}
       <p className="hint">
         Withhold anything that isn&apos;t the requester&apos;s to receive, such as another person&apos;s data.
         Every change is recorded, and a separate approver authorises the final set.

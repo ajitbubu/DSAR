@@ -17,6 +17,8 @@ class BlobStore(Protocol):
 
     def stream(self, key: str, chunk_size: int = 64 * 1024) -> Iterator[bytes]: ...
 
+    def delete(self, key: str) -> None: ...
+
 
 class S3BlobStore:
     def __init__(
@@ -48,6 +50,9 @@ class S3BlobStore:
         body = self._s3.get_object(Bucket=self._bucket, Key=key)["Body"]
         yield from body.iter_chunks(chunk_size)
 
+    def delete(self, key: str) -> None:
+        self._s3.delete_object(Bucket=self._bucket, Key=key)
+
 
 class MemoryBlobStore:
     """Tests only."""
@@ -64,6 +69,10 @@ class MemoryBlobStore:
         data = self.objects[key][0]
         for i in range(0, len(data), chunk_size):
             yield data[i : i + chunk_size]
+
+    def delete(self, key: str) -> None:
+        with self._lock:
+            self.objects.pop(key, None)
 
 
 def object_key(tenant_id: object, request_id: object, artifact_id: object, ext: str) -> str:

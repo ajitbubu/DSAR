@@ -112,6 +112,15 @@ COVERAGE: dict[str, list[str]] = {
         "test_access_a2.py::test_exported_values_never_reach_db_rows_audit_or_logs",
         "test_access_a2.py::test_export_is_encrypted_and_only_hashes_reach_the_db",
     ],
+    "T-27": [
+        "test_access_a3.py::test_the_report_leaves_out_withheld_content_and_is_stored_encrypted",
+        "test_access_a3.py::test_downloads_need_a_live_session_for_that_request",
+        "test_access_a3.py::test_the_download_limit_and_expiry_give_410",
+        "test_access_a3.py::test_purge_deletes_expired_report_objects",
+        "test_access_a3.py::test_html_escapes_every_value",
+        "test_access_a3.py::test_sign_in_never_reveals_whether_a_request_exists",
+        "test_access_a3.py::test_a_locked_sign_in_leaves_the_case_alone",
+    ],
 }
 PROCESS_ONLY = {"T-21"}  # operator access: a process control, tracked as decision D-7
 

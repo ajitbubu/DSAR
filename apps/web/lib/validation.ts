@@ -5,7 +5,10 @@
 export type ContactChannel = "EMAIL" | "SMS";
 export type Residency = "IN" | "OTHER" | "UNKNOWN";
 
+export type RightChoice = "ERASURE" | "ACCESS";
+
 export type ErasureFormValues = {
+  right: RightChoice;
   fullName: string;
   channel: ContactChannel;
   contact: string;
@@ -60,7 +63,7 @@ export function toRequestPayload(slug: string, v: ErasureFormValues) {
   const details = v.details.trim();
   return {
     intakeSlug: slug,
-    rights: ["ERASURE"],
+    rights: [v.right],
     fullName: v.fullName.trim(),
     contact: { channel: v.channel, value: v.contact.trim() },
     additionalIdentifiers: cid ? [{ type: "CUSTOMER_ID", value: cid }] : [],
@@ -68,6 +71,20 @@ export function toRequestPayload(slug: string, v: ErasureFormValues) {
     residencyClaim: v.residencyClaim,
     consentToProcess: true,
   };
+}
+
+export const REFERENCE = /^DPR-\d{4}-[0-9A-Z]{6}$/;
+
+/** Returning sign-in: the reference from the confirmation, plus the contact used. */
+export function validateSignIn(reference: string, channel: ContactChannel, contact: string): string | null {
+  if (!REFERENCE.test(reference.trim().toUpperCase())) {
+    return "Enter your reference exactly as we sent it, like DPR-2026-AB12CD.";
+  }
+  const c = contact.trim();
+  if (channel === "EMAIL" ? !EMAIL.test(c) : !E164.test(c)) {
+    return channel === "EMAIL" ? "Enter the email address you used." : "Enter the mobile number you used, with country code.";
+  }
+  return null;
 }
 
 export const OTP_PATTERN = /^\d{6}$/;

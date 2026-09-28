@@ -65,9 +65,14 @@ class Settings(BaseSettings):
     rate_limit_submit_per_contact: str = "3/3600"
     rate_limit_confirm_per_ip: str = "30/600"
     rate_limit_resend_per_ip: str = "10/600"
+    rate_limit_sign_in_per_ip: str = "10/600"
+    rate_limit_sign_in_per_contact: str = "5/3600"
 
     # Fulfilment (M6): attempts per destructive task before it fails permanently.
     fulfilment_max_attempts: int = 5
+    # Access report availability (decision D-25; these are the defaults until decided).
+    access_report_ttl_days: int = 14
+    access_report_max_downloads: int = 5
 
     @model_validator(mode="after")
     def _refuse_dev_stand_ins_outside_dev(self) -> "Settings":
@@ -93,6 +98,8 @@ class Settings(BaseSettings):
             "rate_limit_submit_per_contact",
             "rate_limit_confirm_per_ip",
             "rate_limit_resend_per_ip",
+            "rate_limit_sign_in_per_ip",
+            "rate_limit_sign_in_per_contact",
         ):
             hits, _, window = getattr(self, name).partition("/")
             if not (

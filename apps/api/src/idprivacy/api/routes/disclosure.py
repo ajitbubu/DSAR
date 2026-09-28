@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from idprivacy.domain.audit import service as audit
 from idprivacy.domain.disclosure import register as reg
+from idprivacy.domain.disclosure import report as access_report
 from idprivacy.domain.disclosure import service as disclosure
 from idprivacy.platform.auth.deps import Requires, get_tenant_db
 from idprivacy.platform.auth.rbac import Permission, StaffPrincipal
@@ -123,7 +124,20 @@ class ReasonCode(BaseModel):
     label: str
 
 
+class ReportInfo(BaseModel):
+    id: UUID
+    created_at: datetime
+    expires_at: datetime
+    download_count: int
+    max_downloads: int
+    purged_at: datetime | None
+    record_count: int
+    withheld_records: int
+    withheld_fields: int
+
+
 class DisclosureView(BaseModel):
+    report: ReportInfo | None = None
     export: ExportView | None
     records: list[RecordView]
     missing: list[UUID]
@@ -161,8 +175,8 @@ def get_disclosure(
     if not disclosure.is_access_case(db, case.id):
         raise _NOT_FOUND
     svc = request.app.state.services
-    assert case.policy_pack_id is not None
-    pack = svc.registry.by_id(db, case.policy_pack_id).pack
+    # Before jurisdiction there's no pinned pack, so no reason vocabulary yet.
+    pack = svc.registry.by_id(db, case.policy_pack_id).pack if case.policy_pack_id else None
     export = disclosure.latest_export(db, case.id)
     records: list[RecordView] = []
     missing: list[UUID] = []
@@ -204,12 +218,28 @@ def get_disclosure(
             object_id=case.id,
             details={"export_id": str(export.id), "records": len(records)},
         )
+    r = access_report.latest_report(db, case.id)
     return DisclosureView(
+        report=None
+        if r is None
+        else ReportInfo(
+            id=r.id,
+            created_at=r.created_at,
+            expires_at=r.expires_at,
+            download_count=r.download_count,
+            max_downloads=r.max_downloads,
+            purged_at=r.purged_at,
+            record_count=r.record_count,
+            withheld_records=r.withheld_records,
+            withheld_fields=r.withheld_fields,
+        ),
         export=_export_view(export) if export else None,
         records=records,
         missing=missing,
         processing=_processing(db, disclosure.case_connectors(db, case.id)),
-        reason_codes=[ReasonCode(code=e.code, label=e.label) for e in pack.exception_codes],
+        reason_codes=[ReasonCode(code=e.code, label=e.label) for e in pack.exception_codes]
+        if pack
+        else [],
         disclosure_set_sha256=disclosure.disclosure_set_hash(db, case.id),
     )
 

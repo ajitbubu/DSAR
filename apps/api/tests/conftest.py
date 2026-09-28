@@ -374,3 +374,39 @@ def packaged(client: TestClient, fulfilled, connector_factory) -> dict[str, Any]
     artifact = generate(client, fulfilled["tenant"], fulfilled["rid"])
     assert artifact is not None
     return {**fulfilled, "artifact": artifact}
+
+
+@pytest.fixture
+def review(
+    client: TestClient,
+    make_tenant,
+    connector_factory,
+    provision_user,
+    make_token,
+    migrator_engine: Engine,
+) -> dict[str, Any]:  # type: ignore[no-untyped-def]
+    """An access case under review, with an analyst, an approver and a tenant admin."""
+    from tests.test_access_a1 import V11, access_case
+    from tests.test_discovery import discover_all
+    from tests.test_retention import status_of, transition
+
+    tenant = make_tenant(packs=V11)
+    rid = access_case(client, tenant)
+    discover_all(client, tenant, rid, connector_factory)
+    assert status_of(migrator_engine, rid)[0] == "DISCOVERY_COMPLETE"
+    analyst_id, analyst_sub = provision_user(tenant, ["PRIVACY_ANALYST"])
+    analyst = bearer(make_token(analyst_sub))
+    assert transition(client, rid, "BEGIN_REVIEW", analyst, migrator_engine).status_code == 200
+    _, approver_sub = provision_user(tenant, ["APPROVER"])
+    _, admin_sub = provision_user(tenant, ["TENANT_ADMIN"])
+    _, auditor_sub = provision_user(tenant, ["AUDITOR"])
+    return {
+        "tenant": tenant,
+        "rid": rid,
+        "analyst": analyst,
+        "analyst_id": analyst_id,
+        "approver": bearer(make_token(approver_sub)),
+        "admin": bearer(make_token(admin_sub)),
+        "auditor": bearer(make_token(auditor_sub)),
+        "factory": connector_factory,
+    }

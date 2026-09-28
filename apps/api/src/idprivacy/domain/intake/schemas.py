@@ -108,6 +108,30 @@ class OtpResent(_Camel):
     expires_at: datetime = Field(alias="expiresAt")
 
 
+class SignInCreate(_Strict):
+    """A returning requester asks for a code to reopen their request."""
+
+    intake_slug: Annotated[str, StringConstraints(pattern=r"^[a-z0-9-]{3,40}$")] = Field(
+        alias="intakeSlug"
+    )
+    reference: Annotated[str, StringConstraints(pattern=r"^DPR-[0-9]{4}-[0-9A-Z]{6}$")]
+    contact: Contact
+
+
+class SignInAccepted(_Camel):
+    challenge_id: str = Field(alias="challengeId")
+    expires_at: datetime = Field(alias="expiresAt")
+    destination_hint: str = Field(alias="destinationHint")
+
+
+class PublicReport(_Camel):
+    available: bool
+    available_until: datetime = Field(alias="availableUntil")
+    downloads_left: int = Field(alias="downloadsLeft")
+    records: int
+    withheld: int
+
+
 class PublicCaseStatus(_Camel):
     display_id: str = Field(alias="displayId")
     status: Literal[
@@ -117,3 +141,4 @@ class PublicCaseStatus(_Camel):
     due_at: datetime | None = Field(default=None, alias="dueAt")
     completion_response: str | None = Field(default=None, alias="completionResponse")
     can_cancel: bool = Field(alias="canCancel")
+    report: PublicReport | None = None

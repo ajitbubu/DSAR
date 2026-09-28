@@ -4,7 +4,9 @@ from uuid import UUID
 
 import structlog
 
+from idprivacy.domain.cases.lifecycle import CaseStatus
 from idprivacy.domain.communications import service as communications
+from idprivacy.domain.disclosure import report as access_report
 from idprivacy.domain.disclosure import service as disclosure
 from idprivacy.domain.discovery import service as discovery
 from idprivacy.domain.discovery.connectors import build_connector
@@ -27,6 +29,7 @@ TOPIC_TASKS: dict[str, str] = {
     "case.evidence_requested": "idprivacy_worker.tasks.generate_evidence",
     "case.response_requested": "idprivacy_worker.tasks.respond_and_close",
     "case.export_requested": "idprivacy_worker.tasks.run_disclosure_export",
+    "case.report_requested": "idprivacy_worker.tasks.build_access_report",
 }
 
 
@@ -222,6 +225,46 @@ def run_disclosure_export(self: object, tenant_id: str, request_id: str, export_
     if outcome.status == "FAILED" and outcome.retryable:
         # run_export re-runs a FAILED export while it is still the latest round.
         raise RetryableConnectorFailure(export_id)
+
+
+@celery_app.task(
+    name="idprivacy_worker.tasks.build_access_report",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    max_retries=5,
+)
+def build_access_report(self: object, tenant_id: str, request_id: str, approval_id: str) -> None:
+    """Report, then the staff evidence package, which fires REPORT_READY. Both idempotent."""
+    svc = services()
+    tid, rid = UUID(tenant_id), UUID(request_id)
+    report_id = access_report.build(
+        svc.engine,
+        tenant_id=tid,
+        request_id=rid,
+        approval_id=UUID(approval_id),
+        store=svc.blob_store,
+        cipher=svc.cipher,
+        registry=svc.registry,
+        settings=svc.settings,
+    )
+    artifact = evidence.generate(
+        svc.engine,
+        tenant_id=tid,
+        request_id=rid,
+        store=svc.blob_store,
+        registry=svc.registry,
+        cipher=svc.cipher,
+        from_status=CaseStatus.FULFILMENT_IN_PROGRESS,
+        event="REPORT_READY",
+    )
+    log.info(
+        "access_report_built",
+        tenant_id=tenant_id,
+        request_id=request_id,
+        report_id=str(report_id) if report_id else "skipped",
+        artifact_id=str(artifact) if artifact else "skipped",
+    )
 
 
 _notifier: communications.NotificationProvider | None = None

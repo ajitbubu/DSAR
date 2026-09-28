@@ -130,9 +130,9 @@ Every credential in this repo (`.env.example`, the Keycloak realm, `seaweedfs/s3
 - **Scanning:** `make security` and a CI `security` job (pip-audit, pnpm audit, gitleaks with a documented, value-exact allowlist).
 - **Docs:** production deployment architecture, and a threat-model review with residual risks. Sign-off is pending a named owner.
 
-## Next: Right to Access (in progress)
+## Right to Access
 
-The plan is in [`docs/milestones-access.md`](docs/milestones-access.md). **A1 and A2 are done.** A1:
+The plan is in [`docs/milestones-access.md`](docs/milestones-access.md). **A1–A3 are done: Right to Access works end to end.** A1:
 - The connector SDK has `export_records`: bounded, and it refuses records that weren't requested. The mocks implement it, and the conformance kit checks it.
 - `DPDP@1.1.0` makes ACCESS executable with an `access` workflow. 1.0.0 stays pinned for existing cases, and dev tenants now use 1.1.0.
 - After discovery, the next step is chosen by the pack: erasure workflows evaluate retention, and access workflows go straight to review.
@@ -142,4 +142,8 @@ A2:
 - A tenant-maintained **processing register** (`/ops/register`) says why each system holds data and who receives it.
 - A separate approver authorises the exact disclosure set, which is hash-bound. Exported values never reach DB rows, the audit trail or logs.
 
-A3 (building the report and delivering it to the requester) is next. Until then, an approved access case waits at `APPROVED`.
+A3:
+- The requester chooses "Get a copy of my data" on the form.
+- Once approved, the worker builds an encrypted report (JSON plus readable HTML) from the approved set, and the case closes like an erasure case.
+- The requester downloads the report from their status page within its availability window and download limit (D-25), and can come back later with their reference and a new code.
+- `make purge-reports` removes expired reports.

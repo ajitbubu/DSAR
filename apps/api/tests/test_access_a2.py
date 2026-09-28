@@ -12,9 +12,8 @@ from sqlalchemy.exc import DBAPIError
 from idprivacy.domain.disclosure import service as disclosure
 from idprivacy.platform.db import TenantContext, tenant_session
 from tests.conftest import bearer
-from tests.test_access_a1 import V11, access_case
+from tests.test_access_a1 import V11
 from tests.test_approvals import decide
-from tests.test_discovery import discover_all
 from tests.test_retention import status_of, transition
 
 # Content only a connector export can produce (identifiers are stored encrypted anyway).
@@ -23,38 +22,6 @@ PURPOSES = {
     "purposes": ["Customer support"],
     "recipients": [{"name": "Acme Mail Ltd", "kind": "PROCESSOR"}],
 }
-
-
-@pytest.fixture
-def review(
-    client: TestClient,
-    make_tenant,
-    connector_factory,
-    provision_user,
-    make_token,
-    migrator_engine: Engine,
-) -> dict[str, Any]:  # type: ignore[no-untyped-def]
-    """An access case under review, with an analyst, an approver and a tenant admin."""
-    tenant = make_tenant(packs=V11)
-    rid = access_case(client, tenant)
-    discover_all(client, tenant, rid, connector_factory)
-    assert status_of(migrator_engine, rid)[0] == "DISCOVERY_COMPLETE"
-    analyst_id, analyst_sub = provision_user(tenant, ["PRIVACY_ANALYST"])
-    analyst = bearer(make_token(analyst_sub))
-    assert transition(client, rid, "BEGIN_REVIEW", analyst, migrator_engine).status_code == 200
-    _, approver_sub = provision_user(tenant, ["APPROVER"])
-    _, admin_sub = provision_user(tenant, ["TENANT_ADMIN"])
-    _, auditor_sub = provision_user(tenant, ["AUDITOR"])
-    return {
-        "tenant": tenant,
-        "rid": rid,
-        "analyst": analyst,
-        "analyst_id": analyst_id,
-        "approver": bearer(make_token(approver_sub)),
-        "admin": bearer(make_token(admin_sub)),
-        "auditor": bearer(make_token(auditor_sub)),
-        "factory": connector_factory,
-    }
 
 
 def export(
@@ -213,6 +180,20 @@ def test_view_is_audited_uncached_and_limited_to_reviewers_and_approvers(
             {"r": review["rid"]},
         ).scalar_one()
     assert n == 2
+
+
+def test_view_before_jurisdiction_is_empty_not_an_error(
+    client: TestClient, make_tenant, provision_user, make_token
+) -> None:
+    from tests.test_discovery import _verified_with
+    from tests.test_public_intake import form
+
+    tenant = make_tenant(packs=V11)
+    rid = _verified_with(client, tenant, form("", rights=["ACCESS"]))
+    _, sub = provision_user(tenant, ["PRIVACY_ANALYST"])
+    r = client.get(f"/v1/cases/{rid}/disclosure", headers=bearer(make_token(sub)))
+    assert r.status_code == 200
+    assert r.json()["export"] is None and r.json()["reason_codes"] == []
 
 
 # ---------- Exclusions ------------------------------------------------------------------
@@ -398,19 +379,28 @@ def test_an_exclusion_author_cannot_approve(
     assert decide(client, review["rid"], review["approver"]).status_code == 201
 
 
-def test_an_approved_access_case_waits_for_its_report(
+def test_an_approved_access_case_builds_a_report_not_erasure_tasks(
     client: TestClient, review, migrator_engine: Engine
 ) -> None:
     export(client, review)
     register_all(client, review)
     submit(client, review, migrator_engine)
     assert decide(client, review["rid"], review["approver"]).status_code == 201
-    assert status_of(migrator_engine, review["rid"])[0] == "APPROVED"
+    assert status_of(migrator_engine, review["rid"])[0] == "FULFILMENT_IN_PROGRESS"
     with migrator_engine.connect() as conn:
         tasks = conn.execute(
             text("SELECT count(*) FROM fulfilment_task WHERE request_id = :r"), {"r": review["rid"]}
         ).scalar_one()
+        topics = (
+            conn.execute(
+                text("SELECT topic FROM outbox WHERE payload->>'request_id' = :r"),
+                {"r": str(review["rid"])},
+            )
+            .scalars()
+            .all()
+        )
     assert tasks == 0  # no erasure fulfilment for an access case
+    assert "case.report_requested" in topics and "case.fulfilment_requested" not in topics
 
 
 # ---------- Processing register -------------------------------------------------------

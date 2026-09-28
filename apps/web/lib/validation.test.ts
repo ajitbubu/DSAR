@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { type ErasureFormValues, toRequestPayload, validateErasureForm } from "./validation";
+import { type ErasureFormValues, toRequestPayload, validateErasureForm, validateSignIn } from "./validation";
 
 const valid: ErasureFormValues = {
+  right: "ERASURE",
   fullName: "Priya Sharma",
   channel: "EMAIL",
   contact: "priya@example.in",
@@ -70,5 +71,23 @@ describe("toRequestPayload", () => {
   it("includes a customer ID when given", () => {
     const p = toRequestPayload("acme", { ...valid, customerId: "CUST-1" });
     expect(p.additionalIdentifiers).toEqual([{ type: "CUSTOMER_ID", value: "CUST-1" }]);
+  });
+});
+
+describe("right choice", () => {
+  it("sends the chosen right", () => {
+    expect(toRequestPayload("acme", { ...valid, right: "ACCESS" }).rights).toEqual(["ACCESS"]);
+  });
+});
+
+describe("validateSignIn", () => {
+  it("accepts a reference in any case and a matching contact", () => {
+    expect(validateSignIn("dpr-2026-ab12cd", "EMAIL", "a@example.in")).toBeNull();
+    expect(validateSignIn("DPR-2026-AB12CD", "SMS", "+919876543210")).toBeNull();
+  });
+  it("rejects malformed references and contacts", () => {
+    expect(validateSignIn("DPR-26-AB", "EMAIL", "a@example.in")).toMatch(/reference/);
+    expect(validateSignIn("DPR-2026-AB12CD<", "EMAIL", "a@example.in")).toMatch(/reference/);
+    expect(validateSignIn("DPR-2026-AB12CD", "SMS", "98765")).toMatch(/mobile/);
   });
 });

@@ -729,6 +729,16 @@
             },
             "title": "Records",
             "type": "array"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1705,6 +1715,16 @@
             ],
             "title": "Dueat"
           },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "enum": [
               "Verifying",
@@ -1730,6 +1750,40 @@
           "canCancel"
         ],
         "title": "PublicCaseStatus",
+        "type": "object"
+      },
+      "PublicReport": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "availableUntil": {
+            "format": "date-time",
+            "title": "Availableuntil",
+            "type": "string"
+          },
+          "downloadsLeft": {
+            "title": "Downloadsleft",
+            "type": "integer"
+          },
+          "records": {
+            "title": "Records",
+            "type": "integer"
+          },
+          "withheld": {
+            "title": "Withheld",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "available",
+          "availableUntil",
+          "downloadsLeft",
+          "records",
+          "withheld"
+        ],
+        "title": "PublicReport",
         "type": "object"
       },
       "QueueItem": {
@@ -1899,6 +1953,70 @@
           "recipients"
         ],
         "title": "RegisterBody",
+        "type": "object"
+      },
+      "ReportInfo": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "download_count": {
+            "title": "Download Count",
+            "type": "integer"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "max_downloads": {
+            "title": "Max Downloads",
+            "type": "integer"
+          },
+          "purged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purged At"
+          },
+          "record_count": {
+            "title": "Record Count",
+            "type": "integer"
+          },
+          "withheld_fields": {
+            "title": "Withheld Fields",
+            "type": "integer"
+          },
+          "withheld_records": {
+            "title": "Withheld Records",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "expires_at",
+          "download_count",
+          "max_downloads",
+          "purged_at",
+          "record_count",
+          "withheld_records",
+          "withheld_fields"
+        ],
+        "title": "ReportInfo",
         "type": "object"
       },
       "ResultView": {
@@ -2151,6 +2269,56 @@
           "sla_validated"
         ],
         "title": "RightSummary",
+        "type": "object"
+      },
+      "SignInAccepted": {
+        "properties": {
+          "challengeId": {
+            "title": "Challengeid",
+            "type": "string"
+          },
+          "destinationHint": {
+            "title": "Destinationhint",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "title": "Expiresat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challengeId",
+          "expiresAt",
+          "destinationHint"
+        ],
+        "title": "SignInAccepted",
+        "type": "object"
+      },
+      "SignInCreate": {
+        "additionalProperties": false,
+        "description": "A returning requester asks for a code to reopen their request.",
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/Contact"
+          },
+          "intakeSlug": {
+            "pattern": "^[a-z0-9-]{3,40}$",
+            "title": "Intakeslug",
+            "type": "string"
+          },
+          "reference": {
+            "pattern": "^DPR-[0-9]{4}-[0-9A-Z]{6}$",
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "intakeSlug",
+          "reference",
+          "contact"
+        ],
+        "title": "SignInCreate",
         "type": "object"
       },
       "SourceView": {
@@ -3822,6 +3990,50 @@
         ]
       }
     },
+    "/v1/public/case/report/{fmt}": {
+      "get": {
+        "operationId": "download_report_v1_public_case_report__fmt__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fmt",
+            "required": true,
+            "schema": {
+              "enum": [
+                "json",
+                "html"
+              ],
+              "title": "Fmt",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Report",
+        "tags": [
+          "public"
+        ]
+      }
+    },
     "/v1/public/requests": {
       "post": {
         "operationId": "submit_request_v1_public_requests_post",
@@ -3858,6 +4070,48 @@
           }
         },
         "summary": "Submit Request",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/v1/public/sessions": {
+      "post": {
+        "description": "Always the same answer, whether or not the reference and contact match a request:\na code is sent only when they do, so this can't be used to discover requests.",
+        "operationId": "request_sign_in_v1_public_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Sign In",
         "tags": [
           "public"
         ]

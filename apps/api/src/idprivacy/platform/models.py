@@ -219,6 +219,8 @@ class IdentityVerification(Base):
     tenant_id: Mapped[uuid.UUID] = _tenant_fk()
     request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     method: Mapped[str] = mapped_column(String(16), nullable=False)
+    # INTAKE verifies a new request; SIGN_IN reopens a tracking session for an existing one.
+    purpose: Mapped[str] = mapped_column(String(16), nullable=False, default="INTAKE")
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
     challenge_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -704,4 +706,40 @@ class ProcessingRegisterEntry(Base):
     purposes: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     recipients: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False)
     updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class AccessReport(Base):
+    """The requester's copy of their data. Content lives only in the encrypted objects."""
+
+    __tablename__ = "access_report"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "approval_id", name="uq_access_report_approval"),
+        ForeignKeyConstraint(
+            ["tenant_id", "request_id"],
+            ["privacy_request.tenant_id", "privacy_request.id"],
+            name="fk_access_report_request",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "export_id"],
+            ["disclosure_export.tenant_id", "disclosure_export.id"],
+            name="fk_access_report_export",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    export_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    approval_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    json_key: Mapped[str] = mapped_column(String(300), nullable=False)
+    html_key: Mapped[str] = mapped_column(String(300), nullable=False)
+    json_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    html_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    record_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    withheld_records: Mapped[int] = mapped_column(Integer, nullable=False)
+    withheld_fields: Mapped[int] = mapped_column(Integer, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    max_downloads: Mapped[int] = mapped_column(Integer, nullable=False)
+    download_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()

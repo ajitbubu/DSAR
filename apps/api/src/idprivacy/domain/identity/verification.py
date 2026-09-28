@@ -73,12 +73,14 @@ def issue(
     request: PrivacyRequest,
     channel: str,
     destination: str,
+    purpose: str = "INTAKE",
 ) -> IdentityVerification:
     now = datetime.now(UTC)
     challenge = IdentityVerification(
         tenant_id=request.tenant_id,
         request_id=request.id,
         method="OTP_EMAIL" if channel == "EMAIL" else "OTP_SMS",
+        purpose=purpose,
         provider=provider.name,
         challenge_hash="pending",
         status=ChallengeStatus.PENDING,
@@ -101,7 +103,7 @@ def issue(
         action="identity.challenge_issued",
         object_type="identity_verification",
         object_id=challenge.id,
-        details={"method": challenge.method, "provider": provider.name},
+        details={"method": challenge.method, "provider": provider.name, "purpose": purpose},
     )
     return challenge
 
@@ -147,6 +149,25 @@ def confirm(
     expected = challenge.challenge_hash
     supplied = _hash(keys, challenge.tenant_id, challenge.id, code)
     request = _request(session, challenge)
+    sign_in = challenge.purpose == "SIGN_IN"
+    if hmac.compare_digest(expected, supplied) and sign_in:
+        # A returning requester: reopen a tracking session, never touch the case state.
+        challenge.status = ChallengeStatus.VERIFIED
+        challenge.verified_at = datetime.now(UTC)
+        token, expires = dp_session.create(
+            session, tenant_id=challenge.tenant_id, request_id=request.id, settings=settings
+        )
+        audit.append(
+            session,
+            tenant_id=challenge.tenant_id,
+            actor_type="DATA_PRINCIPAL",
+            actor_ref=actor,
+            action="identity.signed_in",
+            object_type="identity_verification",
+            object_id=challenge.id,
+            details={"attempts": challenge.attempts + 1},
+        )
+        return ConfirmResult(Outcome.VERIFIED, session_token=token, session_expires_at=expires)
     if hmac.compare_digest(expected, supplied):
         challenge.status = ChallengeStatus.VERIFIED
         challenge.verified_at = datetime.now(UTC)
@@ -187,7 +208,9 @@ def confirm(
         object_id=challenge.id,
         details={"attempts": challenge.attempts},
     )
-    if remaining <= 0:
+    if remaining <= 0 and sign_in:
+        challenge.status = ChallengeStatus.FAILED  # the case itself is unaffected
+    elif remaining <= 0:
         challenge.status = ChallengeStatus.FAILED
         transition(
             session,

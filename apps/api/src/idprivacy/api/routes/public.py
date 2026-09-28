@@ -1,10 +1,11 @@
 """Public Data Principal routes (screens 1–3). Reachable only through the web BFF."""
 
-from datetime import UTC, datetime
-from typing import Annotated
-from uuid import UUID
+import hmac
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, Literal
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
@@ -16,16 +17,21 @@ from idprivacy.domain.cases.lifecycle import (
     transition,
 )
 from idprivacy.domain.communications.service import completion_text
+from idprivacy.domain.disclosure import report as access_report
 from idprivacy.domain.identity import verification
 from idprivacy.domain.identity.verification import Outcome
 from idprivacy.domain.intake import service as intake
 from idprivacy.domain.intake.schemas import (
+    Contact,
     ErasureRequestAccepted,
     ErasureRequestCreate,
     OtpConfirm,
     OtpConfirmed,
     OtpResent,
     PublicCaseStatus,
+    PublicReport,
+    SignInAccepted,
+    SignInCreate,
 )
 from idprivacy.platform.auth import dp_session
 from idprivacy.platform.auth.deps import DataPrincipalSession, InternalBff, client_ip
@@ -184,9 +190,24 @@ def _load_case(db: Session, principal: DataPrincipalPrincipal) -> PrivacyRequest
     return req
 
 
+def _report_view(db: Session, req: PrivacyRequest) -> PublicReport | None:
+    r = access_report.latest_report(db, req.id)
+    if r is None:
+        return None
+    left = max(r.max_downloads - r.download_count, 0)
+    return PublicReport(
+        available=r.purged_at is None and left > 0 and r.expires_at > datetime.now(UTC),
+        available_until=r.expires_at,
+        downloads_left=left,
+        records=r.record_count,
+        withheld=r.withheld_records + r.withheld_fields,
+    )
+
+
 def _public_view(db: Session, req: PrivacyRequest) -> PublicCaseStatus:
     status_ = CaseStatus(req.status)
     return PublicCaseStatus(
+        report=_report_view(db, req),
         display_id=req.display_id,
         status=_PUBLIC_STATUS.get(status_, "In progress"),
         submitted_at=req.submitted_at,
@@ -223,3 +244,89 @@ def cancel_case(request: Request, principal: DpPrincipal) -> PublicCaseStatus:
             ) from None
         req.closed_at = datetime.now(UTC)
         return _public_view(db, req)
+
+
+# ---------- Access reports and returning sign-in (access milestone A3) -----------------
+
+_NOT_YET_VERIFIED = {
+    CaseStatus.SUBMITTED,
+    CaseStatus.PENDING_VERIFICATION,
+    CaseStatus.VERIFICATION_FAILED,
+}
+
+
+@router.post(
+    "/sessions",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=SignInAccepted,
+    dependencies=[BffOnly],
+)
+def request_sign_in(request: Request, payload: SignInCreate, ip: ClientIp) -> SignInAccepted:
+    """Always the same answer, whether or not the reference and contact match a request:
+    a code is sent only when they do, so this can't be used to discover requests."""
+    state = request.app.state
+    _limit(request, state.limits.sign_in_per_ip, ip)
+    tenant_id = _resolve(request, "SELECT resolve_intake_tenant(:p)", payload.intake_slug)
+    bidx = intake.contact_bidx(state.keys, tenant_id, payload.contact)
+    _limit(request, state.limits.sign_in_per_contact, f"{tenant_id}:{bidx}")
+    challenge_id = uuid4()
+    expires_at = datetime.now(UTC) + timedelta(seconds=state.settings.otp_ttl_seconds)
+    with tenant_session(state.app_engine, TenantContext(tenant_id)) as db:
+        req = db.execute(
+            select(PrivacyRequest).where(PrivacyRequest.display_id == payload.reference)
+        ).scalar_one_or_none()
+        if req is not None and CaseStatus(req.status) not in _NOT_YET_VERIFIED:
+            channel, destination = intake.contact_for_request(state.cipher, req)
+            stored = intake.contact_bidx(
+                state.keys, tenant_id, Contact(channel=channel, value=destination)
+            )
+            if hmac.compare_digest(stored, bidx):
+                challenge = verification.issue(
+                    db,
+                    keys=state.keys,
+                    provider=state.otp_provider,
+                    settings=state.settings,
+                    request=req,
+                    channel=channel,
+                    destination=destination,
+                    purpose="SIGN_IN",
+                )
+                challenge_id, expires_at = challenge.id, challenge.expires_at
+    return SignInAccepted(
+        challenge_id=str(challenge_id),
+        expires_at=expires_at,
+        destination_hint=intake.destination_hint(payload.contact),
+    )
+
+
+@router.get("/case/report/{fmt}")
+def download_report(
+    request: Request, principal: DpPrincipal, fmt: Literal["json", "html"]
+) -> Response:
+    state = request.app.state
+    with tenant_session(state.app_engine, TenantContext(principal.tenant_id)) as db:
+        dp_session.touch(db, principal.session_id, state.settings)
+        try:
+            d = access_report.download(
+                db,
+                request_id=principal.request_id,
+                fmt=fmt,
+                cipher=state.cipher,
+                store=state.services.blob_store,
+            )
+        except LookupError:
+            raise _NOT_FOUND from None
+        except access_report.ReportGone:
+            raise HTTPException(
+                status.HTTP_410_GONE, "This report is no longer available"
+            ) from None
+    headers = {
+        "Content-Disposition": f'attachment; filename="{d.filename}"',
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+    }
+    if fmt == "html":
+        headers["Content-Security-Policy"] = (
+            "sandbox; default-src 'none'; style-src 'unsafe-inline'"
+        )
+    return Response(d.body, media_type=d.media_type, headers=headers)

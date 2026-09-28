@@ -16,6 +16,13 @@ type PublicCase = {
   dueAt: string | null;
   completionResponse: string | null;
   canCancel: boolean;
+  report: {
+    available: boolean;
+    availableUntil: string;
+    downloadsLeft: number;
+    records: number;
+    withheld: number;
+  } | null;
 };
 
 const EXPLAIN: Record<string, string> = {
@@ -54,7 +61,10 @@ export default async function StatusPage({ params }: { params: Promise<{ slug: s
           Sessions expire after 30 minutes of inactivity. We&apos;ll contact you when your
           request is complete.
         </p>
-        <Link className="button" href={`/r/${slug}`}>Make another request</Link>
+        <div className="actions">
+          <Link className="button" href={`/r/${slug}/signin`}>Return to your request</Link>
+          <Link className="button secondary" href={`/r/${slug}`}>Make another request</Link>
+        </div>
       </Chrome>
     );
   }
@@ -75,6 +85,27 @@ export default async function StatusPage({ params }: { params: Promise<{ slug: s
         {c.dueAt && (<><dt>Respond by</dt><dd>{formatDate(c.dueAt)}</dd></>)}
       </dl>
       {c.completionResponse && <div className="alert success">{c.completionResponse}</div>}
+      {c.report && (
+        <section className="report" aria-labelledby="report-heading">
+          <h2 id="report-heading">Your copy of your data</h2>
+          {c.report.available ? (
+            <>
+              <p>
+                {c.report.records} record{c.report.records === 1 ? "" : "s"}
+                {c.report.withheld > 0 && `, with ${c.report.withheld} item${c.report.withheld === 1 ? "" : "s"} withheld`}.
+                Available until {formatDate(c.report.availableUntil)}; {c.report.downloadsLeft} download
+                {c.report.downloadsLeft === 1 ? "" : "s"} left.
+              </p>
+              <div className="actions">
+                <a className="button" href="/api/public/report/html" download>Download (readable page)</a>
+                <a className="button secondary" href="/api/public/report/json" download>Download (JSON)</a>
+              </div>
+            </>
+          ) : (
+            <p className="hint">This copy is no longer available. Contact us if you need another.</p>
+          )}
+        </section>
+      )}
       <p className="hint">Keep your reference number. You&apos;ll need it if you contact us.</p>
       {c.canCancel && <CancelButton />}
     </Chrome>

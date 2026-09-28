@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from idprivacy.domain.approvals import service as approvals
 from idprivacy.domain.cases.lifecycle import CaseStatus
+from idprivacy.domain.disclosure import report as access_report
 from idprivacy.domain.disclosure import service as disclosure
 from idprivacy.domain.fulfilment import service as fulfilment
 from idprivacy.domain.policy.workflow import GuardFailed, TransitionForbidden, fire
@@ -181,10 +182,13 @@ def decide(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden") from None
     except GuardFailed as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, exc.reason) from None
-    if case.status == CaseStatus.APPROVED and disclosure.latest_export(db, case.id) is None:
-        # Same transaction: an approved case always has its fulfilment plan. A case with a
-        # disclosure waits for its report instead (access milestone A3).
+    if case.status == CaseStatus.APPROVED:
+        # Same transaction: an approved case always has its next step queued. With a
+        # disclosure that's building the access report; otherwise erasure fulfilment.
         approval = db.get(Approval, approval_id)
         assert approval is not None
-        fulfilment.plan(db, request=case, approval=approval, registry=registry)
+        if disclosure.latest_export(db, case.id) is not None:
+            access_report.plan(db, request=case, approval=approval, registry=registry)
+        else:
+            fulfilment.plan(db, request=case, approval=approval, registry=registry)
     return JSONResponse(response, status_code=status.HTTP_201_CREATED)

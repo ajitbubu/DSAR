@@ -29,15 +29,19 @@ from idprivacy.platform import outbox
 from idprivacy.platform.crypto import FieldCipher
 from idprivacy.platform.db import TenantContext, tenant_session
 from idprivacy.platform.models import (
+    AccessReport,
     Approval,
     ApprovalSubmission,
     ConnectorConfig,
     ConnectorExecution,
     DataMatch,
+    DisclosureExclusion,
+    DisclosureExport,
     EvidenceArtifact,
     FulfilmentTask,
     JurisdictionDecision,
     PrivacyRequest,
+    ProcessingRegisterEntry,
     RequestIdentifier,
     RequestRight,
     RetentionDecision,
@@ -110,6 +114,85 @@ def collect(session: Session, request: PrivacyRequest, cipher: FieldCipher) -> d
 
     def ref(match_id: UUID) -> str:
         return matches[match_id].source_record_ref
+
+    exports = (
+        session.execute(
+            select(DisclosureExport)
+            .where(DisclosureExport.request_id == rid)
+            .order_by(DisclosureExport.round)
+        )
+        .scalars()
+        .all()
+    )
+    disclosure = None
+    if exports:
+        # Access requests: hashes, counts and who decided what. Never exported content.
+        report = session.execute(
+            select(AccessReport)
+            .where(AccessReport.request_id == rid)
+            .order_by(AccessReport.created_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        connectors_used = sorted({m.connector_id for m in matches.values()})
+        disclosure = {
+            "exports": [
+                {
+                    "export_id": str(e.id),
+                    "round": e.round,
+                    "status": e.status,
+                    "content_sha256": e.content_sha256,
+                    "records": e.record_count,
+                    "fields": e.field_count,
+                    "missing": e.missing_count,
+                    "requested_by": str(e.requested_by),
+                    "at": _iso(e.created_at),
+                }
+                for e in exports
+            ],
+            "exclusions": [
+                {
+                    "export_id": str(x.export_id),
+                    "record": ref(x.data_match_id),
+                    "field": x.field_name,
+                    "action": x.action,
+                    "reason_code": x.reason_code,
+                    "by": str(x.created_by),
+                    "at": _iso(x.created_at),
+                }
+                for x in session.execute(
+                    select(DisclosureExclusion)
+                    .where(DisclosureExclusion.request_id == rid)
+                    .order_by(DisclosureExclusion.created_at, DisclosureExclusion.id)
+                ).scalars()
+            ],
+            "processing_register": [
+                {
+                    "entry_id": str(p.id),
+                    "connector": p.connector_id,
+                    "purposes": p.purposes,
+                    "recipients": p.recipients,
+                    "at": _iso(p.created_at),
+                }
+                for p in session.execute(
+                    select(ProcessingRegisterEntry)
+                    .where(ProcessingRegisterEntry.connector_id.in_(connectors_used))
+                    .order_by(ProcessingRegisterEntry.created_at, ProcessingRegisterEntry.id)
+                ).scalars()
+            ],
+            "report": None
+            if report is None
+            else {
+                "report_id": str(report.id),
+                "approval_id": str(report.approval_id),
+                "json_sha256": report.json_sha256,
+                "html_sha256": report.html_sha256,
+                "records": report.record_count,
+                "withheld_records": report.withheld_records,
+                "withheld_fields": report.withheld_fields,
+                "available_until": _iso(report.expires_at),
+                "max_downloads": report.max_downloads,
+            },
+        }
 
     return {
         "case": {
@@ -245,6 +328,7 @@ def collect(session: Session, request: PrivacyRequest, cipher: FieldCipher) -> d
                 .order_by(VerificationResult.round, VerificationResult.data_match_id)
             ).scalars()
         ],
+        "disclosure": disclosure,
         "audit_timeline": [
             {
                 "seq": e.seq,
@@ -271,6 +355,7 @@ FILES = [
     ("fulfilment.json", "fulfilment"),
     ("connector_evidence.json", "connector_executions"),
     ("verification_report.json", "verification"),
+    ("disclosure.json", "disclosure"),
     ("audit_timeline.json", "audit_timeline"),
 ]
 
@@ -312,12 +397,18 @@ def generate(
     store: BlobStore,
     registry: PolicyRegistry,
     cipher: FieldCipher,
+    from_status: CaseStatus = CaseStatus.VERIFIED_COMPLETE,
+    event: str = "EVIDENCE_READY",
 ) -> UUID | None:
-    """Build, upload and register the package, then fire EVIDENCE_READY. Idempotent."""
+    """Build, upload and register the package, then fire ``event``. Idempotent.
+
+    Erasure packages after verification (EVIDENCE_READY); access packages once the
+    report is stored (REPORT_READY). Either way the next step is the completion response.
+    """
     ctx = TenantContext(tenant_id)
     with tenant_session(engine, ctx) as s:
         request = s.get(PrivacyRequest, request_id)
-        if request is None or request.status != CaseStatus.VERIFIED_COMPLETE:
+        if request is None or request.status != from_status:
             return None
         data = collect(s, request, cipher)
     blob, manifest_sha, _ = build(data, datetime.now(UTC))
@@ -328,7 +419,7 @@ def generate(
         request = s.execute(
             select(PrivacyRequest).where(PrivacyRequest.id == request_id).with_for_update()
         ).scalar_one()
-        if request.status != CaseStatus.VERIFIED_COMPLETE:
+        if request.status != from_status:
             return None
         package_sha = hashlib.sha256(blob).hexdigest()
         s.add(
@@ -363,7 +454,7 @@ def generate(
                 "size": len(blob),
             },
         )
-        fire(s, request, "EVIDENCE_READY", actor=ACTOR, registry=registry)
+        fire(s, request, event, actor=ACTOR, registry=registry)
         outbox.enqueue(
             s,
             tenant_id=tenant_id,
