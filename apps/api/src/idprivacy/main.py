@@ -9,7 +9,16 @@ import structlog
 from fastapi import FastAPI
 from sqlalchemy import text
 
-from idprivacy.api.routes import audit, cases, health, me, policy, public, test_support
+from idprivacy.api.routes import (
+    audit,
+    cases,
+    health,
+    legal_holds,
+    me,
+    policy,
+    public,
+    test_support,
+)
 from idprivacy.config import Settings, get_settings
 from idprivacy.domain.identity.otp import build_otp_provider
 from idprivacy.platform.auth.oidc import KeyResolver, OidcVerifier, jwks_key_resolver
@@ -95,6 +104,7 @@ def create_app(
     app.include_router(public.router)
     app.include_router(policy.router)
     app.include_router(cases.router)
+    app.include_router(legal_holds.router)
     if settings.env == "test" and settings.otp_provider == "mock":
         app.include_router(test_support.router)
     return app

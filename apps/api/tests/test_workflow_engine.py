@@ -104,13 +104,39 @@ def test_system_cannot_be_impersonated_by_staff(client: TestClient, erasure_case
         _fire(client, tenant, rid, "START_DISCOVERY", staff(tenant, RoleCode.PRIVACY_ANALYST))
 
 
-def test_unimplemented_guards_fail_closed(client: TestClient, erasure_case) -> None:
+def test_unimplemented_guards_fail_closed(
+    client: TestClient, erasure_case, connector_factory
+) -> None:
+    """APPROVE's guard lands in M5; until then approval is refused, never allowed."""
+    from tests.test_discovery import discover_all
+    from tests.test_retention import evaluate_case
+
     tenant, rid = erasure_case
-    _to_retention_evaluated(client, tenant, rid)
+    discover_all(client, tenant, rid, connector_factory)
+    evaluate_case(client, tenant, rid)
     analyst = staff(tenant, RoleCode.PRIVACY_ANALYST)
     _fire(client, tenant, rid, "BEGIN_REVIEW", analyst)
-    with pytest.raises(GuardFailed, match="no_unresolved_manual_review"):
-        _fire(client, tenant, rid, "SUBMIT_FOR_APPROVAL", analyst)
+    with tenant_session(client.app.state.app_engine, TenantContext(tenant)) as s:  # type: ignore[attr-defined]
+        from idprivacy.domain.retention import service as retention
+
+        for match_id, head in retention.current_decisions(s, rid).items():
+            if head.decision == "MANUAL_REVIEW":
+                retention.override(
+                    s,
+                    request=s.get(PrivacyRequest, rid),
+                    match_id=match_id,
+                    principal=analyst,
+                    registry=PolicyRegistry(),
+                    data=retention.OverrideInput(
+                        "RETAIN",
+                        "LEGAL_OBLIGATION",  # type: ignore[arg-type]
+                        "Kept for statutory records.",
+                        head.id,
+                    ),
+                )
+    _fire(client, tenant, rid, "SUBMIT_FOR_APPROVAL", analyst)
+    with pytest.raises(GuardFailed, match="approval_valid_for_version"):
+        _fire(client, tenant, rid, "APPROVE", staff(tenant, RoleCode.APPROVER))
 
 
 def test_manual_workflow_can_be_closed_by_an_analyst(client: TestClient, make_tenant) -> None:

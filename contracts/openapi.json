@@ -307,6 +307,98 @@
         "title": "Contact",
         "type": "object"
       },
+      "DecisionView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decision": {
+            "title": "Decision",
+            "type": "string"
+          },
+          "exception_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exception Code"
+          },
+          "exception_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exception Reason"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "legal_hold_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Hold Id"
+          },
+          "rule_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Id"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "decision",
+          "source",
+          "rule_id",
+          "exception_code",
+          "exception_reason",
+          "legal_hold_id",
+          "decided_by",
+          "created_at"
+        ],
+        "title": "DecisionView",
+        "type": "object"
+      },
       "DiscoveryView": {
         "properties": {
           "case_status": {
@@ -433,6 +525,36 @@
         "title": "ErasureRequestCreate",
         "type": "object"
       },
+      "ExceptionCodeView": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "reference"
+        ],
+        "title": "ExceptionCodeView",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -444,6 +566,133 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HoldBody": {
+        "additionalProperties": false,
+        "properties": {
+          "case_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "matter_ref": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ./_-]{1,63}$",
+            "title": "Matter Ref",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "CASE",
+              "DATA_PRINCIPAL",
+              "CONNECTOR",
+              "RECORD_TYPE"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "scope_ref": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Ref"
+          }
+        },
+        "required": [
+          "scope",
+          "matter_ref",
+          "reason"
+        ],
+        "title": "HoldBody",
+        "type": "object"
+      },
+      "HoldView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "decisions_changed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decisions Changed"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "matter_ref": {
+            "title": "Matter Ref",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "released_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released At"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "scope_ref": {
+            "title": "Scope Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "scope_ref",
+          "matter_ref",
+          "reason",
+          "created_by",
+          "created_at",
+          "released_at"
+        ],
+        "title": "HoldView",
         "type": "object"
       },
       "Jurisdiction": {
@@ -648,6 +897,38 @@
         "title": "OtpResent",
         "type": "object"
       },
+      "OverrideBody": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/RetentionDecisionCode"
+          },
+          "exception_code": {
+            "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+            "title": "Exception Code",
+            "type": "string"
+          },
+          "exception_reason": {
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Exception Reason",
+            "type": "string"
+          },
+          "expected_current_id": {
+            "format": "uuid",
+            "title": "Expected Current Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "exception_code",
+          "exception_reason",
+          "expected_current_id"
+        ],
+        "title": "OverrideBody",
+        "type": "object"
+      },
       "PackSummary": {
         "properties": {
           "code": {
@@ -747,6 +1028,127 @@
           "canCancel"
         ],
         "title": "PublicCaseStatus",
+        "type": "object"
+      },
+      "RetentionDecisionCode": {
+        "enum": [
+          "DELETE",
+          "RETAIN",
+          "RESTRICT",
+          "ANONYMIZE",
+          "MANUAL_REVIEW"
+        ],
+        "title": "RetentionDecisionCode",
+        "type": "string"
+      },
+      "RetentionItem": {
+        "properties": {
+          "connector_id": {
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecisionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Categories",
+            "type": "array"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionView"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "match_id": {
+            "format": "uuid",
+            "title": "Match Id",
+            "type": "string"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          },
+          "source_record_ref": {
+            "title": "Source Record Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "match_id",
+          "connector_id",
+          "source_record_ref",
+          "record_type",
+          "data_categories",
+          "current",
+          "history"
+        ],
+        "title": "RetentionItem",
+        "type": "object"
+      },
+      "RetentionView": {
+        "properties": {
+          "case_status": {
+            "$ref": "#/components/schemas/CaseStatus"
+          },
+          "case_version": {
+            "title": "Case Version",
+            "type": "integer"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "decisions_allowed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Decisions Allowed",
+            "type": "array"
+          },
+          "exception_codes": {
+            "items": {
+              "$ref": "#/components/schemas/ExceptionCodeView"
+            },
+            "title": "Exception Codes",
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RetentionItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "unresolved_manual_review": {
+            "title": "Unresolved Manual Review",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "case_status",
+          "case_version",
+          "counts",
+          "unresolved_manual_review",
+          "items",
+          "exception_codes",
+          "decisions_allowed"
+        ],
+        "title": "RetentionView",
         "type": "object"
       },
       "RightCode": {
@@ -865,6 +1267,44 @@
           "matches"
         ],
         "title": "SourceView",
+        "type": "object"
+      },
+      "TransitionBody": {
+        "additionalProperties": false,
+        "properties": {
+          "event": {
+            "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+            "title": "Event",
+            "type": "string"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event",
+          "expected_version"
+        ],
+        "title": "TransitionBody",
+        "type": "object"
+      },
+      "TransitionResult": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/CaseStatus"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "TransitionResult",
         "type": "object"
       },
       "ValidationError": {
@@ -1192,6 +1632,273 @@
         "summary": "Retry Discovery",
         "tags": [
           "cases"
+        ]
+      }
+    },
+    "/v1/cases/{case_id}/matches/{match_id}/retention-decisions": {
+      "post": {
+        "operationId": "override_decision_v1_cases__case_id__matches__match_id__retention_decisions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "match_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Match Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverrideBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Override Decision",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/v1/cases/{case_id}/retention": {
+      "get": {
+        "operationId": "get_retention_v1_cases__case_id__retention_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetentionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Retention",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/v1/cases/{case_id}/transitions": {
+      "post": {
+        "description": "Fire a user event from the case's pinned workflow. The pack decides who may.",
+        "operationId": "transition_case_v1_cases__case_id__transitions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransitionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Transition Case",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/v1/legal-holds": {
+      "get": {
+        "operationId": "list_holds_v1_legal_holds_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HoldView"
+                  },
+                  "title": "Response List Holds V1 Legal Holds Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Holds",
+        "tags": [
+          "legal-holds"
+        ]
+      },
+      "post": {
+        "operationId": "place_hold_v1_legal_holds_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HoldBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Place Hold",
+        "tags": [
+          "legal-holds"
+        ]
+      }
+    },
+    "/v1/legal-holds/{hold_id}/release": {
+      "post": {
+        "operationId": "release_hold_v1_legal_holds__hold_id__release_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "hold_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Hold Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Release Hold",
+        "tags": [
+          "legal-holds"
         ]
       }
     },

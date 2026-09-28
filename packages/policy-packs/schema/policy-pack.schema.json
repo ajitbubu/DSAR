@@ -162,7 +162,9 @@
         "case:read",
         "case:review",
         "case:approve",
-        "case:close"
+        "case:close",
+        "legal_hold:read",
+        "legal_hold:manage"
       ],
       "title": "Permission",
       "type": "string"

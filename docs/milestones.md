@@ -46,7 +46,7 @@ DPDP pack v1.0.0 (rights catalogue with six rights, erasure workflow, placeholde
 - A malformed or oversized connector response is rejected and the job is marked failed. No partial garbage is stored.
 - The discovery task is idempotent: running it twice doesn't duplicate matches.
 
-## M4 — Retention engine and legal holds
+## M4 — Retention engine and legal holds ✅
 Rule evaluation from the pack against match attributes and legal holds. Exactly one decision per match. Exception reasons. Analyst override (append-only supersession). Retention review UI.
 
 **Acceptance**

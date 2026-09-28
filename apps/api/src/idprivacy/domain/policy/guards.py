@@ -28,8 +28,17 @@ def _not_implemented(milestone: str) -> Guard:
     return guard
 
 
+def _no_unresolved_manual_review(session: Session, request: PrivacyRequest) -> GuardResult:
+    from idprivacy.domain.retention.service import unresolved_manual_reviews
+
+    pending = unresolved_manual_reviews(session, request.id)
+    if pending:
+        return GuardResult(False, f"{pending} record(s) still need a manual-review decision")
+    return GuardResult(True)
+
+
 GUARDS: dict[str, Guard] = {
-    "no_unresolved_manual_review": _not_implemented("M4"),
+    "no_unresolved_manual_review": _no_unresolved_manual_review,
     "approval_valid_for_version": _not_implemented("M5"),
     "all_fulfilment_tasks_terminal": _not_implemented("M6"),
 }

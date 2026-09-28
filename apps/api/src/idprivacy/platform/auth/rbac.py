@@ -25,17 +25,27 @@ class Permission(StrEnum):
     CASE_REVIEW = "case:review"
     CASE_APPROVE = "case:approve"
     CASE_CLOSE = "case:close"
+    LEGAL_HOLD_READ = "legal_hold:read"
+    LEGAL_HOLD_MANAGE = "legal_hold:manage"
 
 
 _BASE = frozenset({Permission.SELF_READ, Permission.POLICY_READ})
 
 ROLE_PERMISSIONS: dict[RoleCode, frozenset[Permission]] = {
-    RoleCode.TENANT_ADMIN: _BASE,
+    RoleCode.TENANT_ADMIN: _BASE | {Permission.LEGAL_HOLD_READ, Permission.LEGAL_HOLD_MANAGE},
     RoleCode.PRIVACY_ANALYST: _BASE
-    | {Permission.CASE_READ, Permission.CASE_REVIEW, Permission.CASE_CLOSE},
+    | {
+        Permission.CASE_READ,
+        Permission.CASE_REVIEW,
+        Permission.CASE_CLOSE,
+        Permission.LEGAL_HOLD_READ,
+        Permission.LEGAL_HOLD_MANAGE,
+    },
     # Approvers only approve; maker-checker separation is enforced again in M5.
-    RoleCode.APPROVER: _BASE | {Permission.CASE_READ, Permission.CASE_APPROVE},
-    RoleCode.AUDITOR: _BASE | {Permission.CASE_READ, Permission.AUDIT_VERIFY},
+    RoleCode.APPROVER: _BASE
+    | {Permission.CASE_READ, Permission.CASE_APPROVE, Permission.LEGAL_HOLD_READ},
+    RoleCode.AUDITOR: _BASE
+    | {Permission.CASE_READ, Permission.AUDIT_VERIFY, Permission.LEGAL_HOLD_READ},
 }
 
 

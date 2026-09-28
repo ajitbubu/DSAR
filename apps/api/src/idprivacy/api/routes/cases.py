@@ -6,19 +6,23 @@ case's details are audited.
 """
 
 import base64
+import unicodedata
 from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from idprivacy.domain.audit import service as audit
-from idprivacy.domain.cases.lifecycle import CaseStatus
+from idprivacy.domain.cases.lifecycle import CaseStatus, InvalidTransition, StaleVersion
 from idprivacy.domain.discovery import service as discovery
 from idprivacy.domain.identity.resolution import CTX_REQUEST_IDENTIFIER
+from idprivacy.domain.policy.model import RetentionDecisionCode
+from idprivacy.domain.policy.workflow import GuardFailed, TransitionForbidden, fire
+from idprivacy.domain.retention import service as retention
 from idprivacy.platform import outbox
 from idprivacy.platform.auth.deps import Requires, get_tenant_db
 from idprivacy.platform.auth.rbac import Permission, StaffPrincipal
@@ -31,6 +35,7 @@ from idprivacy.platform.models import (
     PrivacyRequest,
     RequestIdentifier,
     RequestRight,
+    RetentionDecision,
 )
 
 router = APIRouter(prefix="/v1/cases", tags=["cases"])
@@ -313,3 +318,194 @@ def retry_discovery(case_id: UUID, principal: Reviewer, db: Db) -> dict[str, int
         details={"sources": reset},
     )
     return {"sources_reset": reset}
+
+
+# ---------- Retention review (M4) ------------------------------------------------------
+
+
+class DecisionView(BaseModel):
+    id: UUID
+    decision: str
+    source: str
+    rule_id: str | None
+    exception_code: str | None
+    exception_reason: str | None
+    legal_hold_id: UUID | None
+    decided_by: UUID | None
+    created_at: datetime
+
+
+class RetentionItem(BaseModel):
+    match_id: UUID
+    connector_id: str
+    source_record_ref: str
+    record_type: str
+    data_categories: list[str]
+    current: DecisionView | None
+    history: list[DecisionView]
+
+
+class ExceptionCodeView(BaseModel):
+    code: str
+    label: str
+    reference: str | None
+
+
+class RetentionView(BaseModel):
+    case_status: CaseStatus
+    case_version: int
+    counts: dict[str, int]
+    unresolved_manual_review: int
+    items: list[RetentionItem]
+    exception_codes: list[ExceptionCodeView]
+    decisions_allowed: list[str]
+
+
+def _decision_view(d: RetentionDecision) -> DecisionView:
+    return DecisionView(
+        id=d.id,
+        decision=d.decision,
+        source=d.source,
+        rule_id=d.rule_id,
+        exception_code=d.exception_code,
+        exception_reason=d.exception_reason,
+        legal_hold_id=d.legal_hold_id,
+        decided_by=d.decided_by,
+        created_at=d.created_at,
+    )
+
+
+@router.get("/{case_id}/retention", response_model=RetentionView)
+def get_retention(case_id: UUID, principal: Reader, db: Db, request: Request) -> RetentionView:
+    case = _load(db, case_id)
+    current = retention.current_decisions(db, case.id)
+    chains = retention.history(db, case.id)
+    items = [
+        RetentionItem(
+            match_id=m.id,
+            connector_id=m.connector_id,
+            source_record_ref=m.source_record_ref,
+            record_type=m.record_type,
+            data_categories=m.data_categories,
+            current=_decision_view(current[m.id]) if m.id in current else None,
+            history=[_decision_view(d) for d in chains.get(m.id, [])],
+        )
+        for m in db.execute(
+            select(DataMatch)
+            .where(DataMatch.request_id == case.id)
+            .order_by(DataMatch.connector_id, DataMatch.source_record_ref)
+        ).scalars()
+    ]
+    counts: dict[str, int] = {}
+    for d in current.values():
+        counts[d.decision] = counts.get(d.decision, 0) + 1
+    codes: list[ExceptionCodeView] = []
+    if case.policy_pack_id:
+        pack = request.app.state.services.registry.by_id(db, case.policy_pack_id).pack
+        codes = [
+            ExceptionCodeView(code=e.code, label=e.label, reference=e.reference)
+            for e in pack.exception_codes
+        ]
+    audit.append(
+        db,
+        tenant_id=case.tenant_id,
+        actor_type="USER",
+        actor_ref=str(principal.user_id),
+        action="case.viewed",
+        object_type="privacy_request",
+        object_id=case.id,
+        details={"view": "retention"},
+    )
+    return RetentionView(
+        case_status=CaseStatus(case.status),
+        case_version=case.version,
+        counts=counts,
+        unresolved_manual_review=counts.get("MANUAL_REVIEW", 0),
+        items=items,
+        exception_codes=codes,
+        decisions_allowed=[d.value for d in RetentionDecisionCode],
+    )
+
+
+class OverrideBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    decision: RetentionDecisionCode
+    exception_code: Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9_]{1,31}$")]
+    exception_reason: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=10, max_length=2000)
+    ]
+    expected_current_id: UUID
+
+
+@router.post(
+    "/{case_id}/matches/{match_id}/retention-decisions",
+    status_code=status.HTTP_201_CREATED,
+    response_model=DecisionView,
+)
+def override_decision(
+    case_id: UUID, match_id: UUID, body: OverrideBody, principal: Reviewer, db: Db, request: Request
+) -> DecisionView:
+    case = db.execute(
+        select(PrivacyRequest).where(PrivacyRequest.id == case_id).with_for_update()
+    ).scalar_one_or_none()
+    if case is None:
+        raise _NOT_FOUND
+    if any(
+        unicodedata.category(ch) in {"Cc", "Cf"} and ch not in "\n\t"
+        for ch in body.exception_reason
+    ):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Unsupported characters")
+    try:
+        decision = retention.override(
+            db,
+            request=case,
+            match_id=match_id,
+            principal=principal,
+            data=retention.OverrideInput(
+                body.decision, body.exception_code, body.exception_reason, body.expected_current_id
+            ),
+            registry=request.app.state.services.registry,
+        )
+    except LookupError:
+        raise _NOT_FOUND from None
+    except retention.StaleDecision:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Decision changed; reload") from None
+    except retention.OverrideRejected as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
+    return _decision_view(decision)
+
+
+class TransitionBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    event: Annotated[str, StringConstraints(pattern=r"^[A-Z][A-Z0-9_]{1,31}$")]
+    expected_version: Annotated[int, Field(ge=1)]
+
+
+class TransitionResult(BaseModel):
+    status: CaseStatus
+    version: int
+
+
+@router.post("/{case_id}/transitions", response_model=TransitionResult)
+def transition_case(
+    case_id: UUID, body: TransitionBody, principal: Reader, db: Db, request: Request
+) -> TransitionResult:
+    """Fire a user event from the case's pinned workflow. The pack decides who may."""
+    case = db.execute(
+        select(PrivacyRequest).where(PrivacyRequest.id == case_id).with_for_update()
+    ).scalar_one_or_none()
+    if case is None:
+        raise _NOT_FOUND
+    if case.version != body.expected_version:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Case changed; reload")
+    try:
+        new_status = fire(
+            db, case, body.event, actor=principal, registry=request.app.state.services.registry
+        )
+    except TransitionForbidden:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden") from None
+    except GuardFailed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, exc.reason) from None
+    except (InvalidTransition, StaleVersion):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Transition not allowed now") from None
+    return TransitionResult(status=new_status, version=case.version)

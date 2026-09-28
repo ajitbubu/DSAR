@@ -190,23 +190,27 @@ erDiagram
   RETENTION_DECISION {
     uuid id PK
     uuid tenant_id FK
+    uuid request_id FK
     uuid data_match_id FK
+    uuid legal_hold_id FK "set when a hold forced RETAIN"
     string decision "DELETE|RETAIN|RESTRICT|ANONYMIZE|MANUAL_REVIEW"
     string source "ENGINE|ANALYST_OVERRIDE"
     string rule_id "policy-pack rule reference"
     string exception_code "required if RETAIN/override"
     string exception_reason
     uuid decided_by FK "null if ENGINE"
-    uuid supersedes_id FK "decisions are append-only"
+    uuid supersedes_id FK "UK; append-only chain, one root per match"
   }
   LEGAL_HOLD {
     uuid id PK
     uuid tenant_id FK
-    string scope "DATA_PRINCIPAL|CONNECTOR|RECORD_TYPE"
+    string scope "CASE|DATA_PRINCIPAL|CONNECTOR|RECORD_TYPE"
     string scope_ref
-    string reason
+    string matter_ref
+    string reason "10-2000 chars"
     uuid created_by FK
     timestamptz released_at
+    uuid released_by FK
   }
   APPROVAL {
     uuid id PK

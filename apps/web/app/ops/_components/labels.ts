@@ -5,6 +5,11 @@ export const STATUS_LABEL: Record<string, string> = {
   JURISDICTION_DETERMINED: "Jurisdiction set",
   DISCOVERY_IN_PROGRESS: "Discovering",
   DISCOVERY_COMPLETE: "Discovery complete",
+  RETENTION_EVALUATED: "Ready for review",
+  UNDER_REVIEW: "Under review",
+  PENDING_APPROVAL: "Awaiting approval",
+  APPROVED: "Approved",
+  REJECTED: "Returned for rework",
   PENDING_MANUAL_HANDLING: "Manual handling",
   CANCELLED: "Withdrawn",
   CLOSED: "Closed",
@@ -26,3 +31,18 @@ export function when(iso: string | null): string {
 }
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+export const DECISION_LABEL: Record<string, string> = {
+  DELETE: "Delete",
+  RETAIN: "Retain",
+  RESTRICT: "Restrict",
+  ANONYMIZE: "Anonymise",
+  MANUAL_REVIEW: "Needs review",
+};
+
+export function decisionTone(decision: string): string {
+  if (decision === "DELETE") return "status bad";
+  if (decision === "MANUAL_REVIEW") return "status warn";
+  if (decision === "RETAIN") return "status ok";
+  return "status";
+}

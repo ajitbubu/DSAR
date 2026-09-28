@@ -6,7 +6,7 @@ A DPDP-first platform for automating Data Principal / Data Subject rights reques
 - Milestones and acceptance criteria: [`docs/milestones.md`](docs/milestones.md)
 - Open security and tenancy decisions: [`docs/open-decisions.md`](docs/open-decisions.md)
 
-**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) and M3 (connector SDK, discovery, staff console) complete.
+**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) M2 (policy packs, jurisdiction, identity resolution) M3 (connector SDK, discovery, staff console) and M4 (retention engine, legal holds, review) complete.
 
 ## Layout
 
@@ -80,3 +80,11 @@ Every credential in this repo (`.env.example`, the Keycloak realm, `seaweedfs/s3
 - **Mock connectors:** a CRM and a document store with per-account data, idempotent actions, a call log and fault injection. Both pass the conformance kit.
 - **Discovery:** after jurisdiction, the worker runs one job per enabled connector using **verified identifiers only**, stores pointers and fingerprints (no record contents), and retries retryable failures without duplicating. The case then moves to `DISCOVERY_COMPLETE`.
 - **Staff console** (`/ops`): OIDC login (PKCE) with Redis-backed server-side sessions, a case list, case details, and source-by-source discovery results. Case reads are audited, and other tenants' cases return 404.
+
+## What M4 provides
+
+- **Retention engine:** the pinned pack's rules are evaluated first-match-wins in the same transaction that completes discovery. With no matching rule, the decision fails safe to `MANUAL_REVIEW`.
+- **Append-only decisions:** one linear chain per record, guaranteed by the DB (one root per match, unique `supersedes_id`, no UPDATE/DELETE). CHECKs require an exception code for RETAIN and a documented reason (≥10 chars) plus the author for any analyst override.
+- **Review:** staff fire pack-defined events through `/v1/cases/{id}/transitions` (version-checked). Overrides only happen under review, use the pack's exception vocabulary, and are audited. Submission is blocked while any record needs manual review.
+- **Legal holds:** scoped to a case, data principal, connector or record type. A hold forces RETAIN, including on open cases already evaluated or awaiting approval, and held records can't be overridden to anything else. Releasing a hold never reverts decisions.
+- **Screen 7** (`/ops/cases/{id}/retention`): per-record decisions, basis and history, change-decision form, review actions and a legal-hold form. Browser mutations go through a CSRF-guarded, allowlisted BFF proxy.

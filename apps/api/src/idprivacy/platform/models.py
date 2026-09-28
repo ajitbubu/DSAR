@@ -418,3 +418,48 @@ class DataMatch(Base):
     content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     attributes: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = _created_at()
+
+
+# ---------- M4: legal holds and retention decisions ---------------------------------
+
+
+class LegalHold(Base):
+    __tablename__ = "legal_hold"
+    __table_args__ = (UniqueConstraint("tenant_id", "id", name="uq_legal_hold_tenant_id_id"),)
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    scope: Mapped[str] = mapped_column(String(20), nullable=False)
+    scope_ref: Mapped[str] = mapped_column(String(128), nullable=False)
+    matter_ref: Mapped[str] = mapped_column(String(64), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    released_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+
+
+class RetentionDecision(Base):
+    """Append-only. The current decision for a match is the one nothing supersedes."""
+
+    __tablename__ = "retention_decision"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_retention_decision_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "data_match_id"],
+            ["data_match.tenant_id", "data_match.id"],
+            name="fk_retention_decision_match",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    data_match_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    decision: Mapped[str] = mapped_column(String(16), nullable=False)
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+    rule_id: Mapped[str | None] = mapped_column(String(64))
+    exception_code: Mapped[str | None] = mapped_column(String(32))
+    exception_reason: Mapped[str | None] = mapped_column(Text)
+    legal_hold_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    supersedes_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = _created_at()
