@@ -1,0 +1,557 @@
+{
+  "$defs": {
+    "Applicability": {
+      "additionalProperties": false,
+      "description": "The pack applies when any condition matches (OR of ANDs).",
+      "properties": {
+        "any_of": {
+          "items": {
+            "$ref": "#/$defs/ApplicabilityCondition"
+          },
+          "minItems": 1,
+          "title": "Any Of",
+          "type": "array"
+        }
+      },
+      "required": [
+        "any_of"
+      ],
+      "title": "Applicability",
+      "type": "object"
+    },
+    "ApplicabilityCondition": {
+      "additionalProperties": false,
+      "description": "All fields present in one condition must match (AND).",
+      "properties": {
+        "requester_residency": {
+          "anyOf": [
+            {
+              "items": {
+                "enum": [
+                  "IN",
+                  "OTHER",
+                  "UNKNOWN"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requester Residency"
+        },
+        "tenant_region": {
+          "anyOf": [
+            {
+              "items": {
+                "pattern": "^[A-Z]{2}$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tenant Region"
+        }
+      },
+      "title": "ApplicabilityCondition",
+      "type": "object"
+    },
+    "CaseStatus": {
+      "enum": [
+        "SUBMITTED",
+        "PENDING_VERIFICATION",
+        "VERIFICATION_FAILED",
+        "VERIFIED",
+        "JURISDICTION_DETERMINED",
+        "DISCOVERY_IN_PROGRESS",
+        "DISCOVERY_COMPLETE",
+        "RETENTION_EVALUATED",
+        "UNDER_REVIEW",
+        "PENDING_APPROVAL",
+        "APPROVED",
+        "REJECTED",
+        "FULFILMENT_IN_PROGRESS",
+        "VERIFICATION_IN_PROGRESS",
+        "RECONCILIATION_REQUIRED",
+        "VERIFIED_COMPLETE",
+        "EVIDENCE_GENERATED",
+        "RESPONDED",
+        "CLOSED",
+        "ON_HOLD",
+        "CANCELLED",
+        "PENDING_MANUAL_HANDLING"
+      ],
+      "title": "CaseStatus",
+      "type": "string"
+    },
+    "ExceptionCode": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        },
+        "requires_reason": {
+          "default": true,
+          "title": "Requires Reason",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "label"
+      ],
+      "title": "ExceptionCode",
+      "type": "object"
+    },
+    "IdentityResolution": {
+      "additionalProperties": false,
+      "properties": {
+        "discovery_assurance": {
+          "items": {
+            "enum": [
+              "VERIFIED",
+              "CLAIMED"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Discovery Assurance",
+          "type": "array"
+        }
+      },
+      "required": [
+        "discovery_assurance"
+      ],
+      "title": "IdentityResolution",
+      "type": "object"
+    },
+    "Permission": {
+      "enum": [
+        "self:read",
+        "audit:verify",
+        "policy:read",
+        "case:review",
+        "case:approve",
+        "case:close"
+      ],
+      "title": "Permission",
+      "type": "string"
+    },
+    "RetentionDecisionCode": {
+      "enum": [
+        "DELETE",
+        "RETAIN",
+        "RESTRICT",
+        "ANONYMIZE",
+        "MANUAL_REVIEW"
+      ],
+      "title": "RetentionDecisionCode",
+      "type": "string"
+    },
+    "RetentionMatch": {
+      "additionalProperties": false,
+      "properties": {
+        "data_categories_any": {
+          "anyOf": [
+            {
+              "items": {
+                "pattern": "^[a-z][a-z0-9_]{1,31}$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Categories Any"
+        },
+        "identifier_assurance": {
+          "anyOf": [
+            {
+              "enum": [
+                "VERIFIED",
+                "CLAIMED"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Identifier Assurance"
+        },
+        "legal_hold": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Legal Hold"
+        },
+        "record_types_any": {
+          "anyOf": [
+            {
+              "items": {
+                "pattern": "^[a-z][a-z0-9_.]{1,63}$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Record Types Any"
+        }
+      },
+      "title": "RetentionMatch",
+      "type": "object"
+    },
+    "RetentionRule": {
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "$ref": "#/$defs/RetentionDecisionCode"
+        },
+        "exception_code": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exception Code"
+        },
+        "id": {
+          "pattern": "^[a-z][a-z0-9-]{1,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/RetentionMatch"
+        }
+      },
+      "required": [
+        "id",
+        "when",
+        "decision"
+      ],
+      "title": "RetentionRule",
+      "type": "object"
+    },
+    "Right": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted_verification": {
+          "items": {
+            "enum": [
+              "OTP_EMAIL",
+              "OTP_SMS"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Accepted Verification",
+          "type": "array"
+        },
+        "executable": {
+          "title": "Executable",
+          "type": "boolean"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        },
+        "title": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "workflow": {
+          "pattern": "^[a-z][a-z0-9_]{1,31}$",
+          "title": "Workflow",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "executable",
+        "workflow",
+        "accepted_verification"
+      ],
+      "title": "Right",
+      "type": "object"
+    },
+    "RightCode": {
+      "enum": [
+        "ERASURE",
+        "ACCESS",
+        "CORRECTION",
+        "CONSENT_WITHDRAWAL",
+        "GRIEVANCE",
+        "NOMINATION"
+      ],
+      "title": "RightCode",
+      "type": "string"
+    },
+    "SlaRule": {
+      "additionalProperties": false,
+      "properties": {
+        "clock_start": {
+          "enum": [
+            "SUBMITTED",
+            "VERIFIED"
+          ],
+          "title": "Clock Start",
+          "type": "string"
+        },
+        "response_days": {
+          "anyOf": [
+            {
+              "maximum": 365,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Response Days"
+        },
+        "validated": {
+          "title": "Validated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "response_days",
+        "clock_start",
+        "validated"
+      ],
+      "title": "SlaRule",
+      "type": "object"
+    },
+    "Transition": {
+      "additionalProperties": false,
+      "properties": {
+        "actor": {
+          "enum": [
+            "SYSTEM",
+            "USER"
+          ],
+          "title": "Actor",
+          "type": "string"
+        },
+        "event": {
+          "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+          "title": "Event",
+          "type": "string"
+        },
+        "from": {
+          "items": {
+            "$ref": "#/$defs/CaseStatus"
+          },
+          "minItems": 1,
+          "title": "From",
+          "type": "array"
+        },
+        "guards": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Guards",
+          "type": "array"
+        },
+        "permission": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Permission"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "to": {
+          "$ref": "#/$defs/CaseStatus"
+        }
+      },
+      "required": [
+        "event",
+        "from",
+        "to",
+        "actor"
+      ],
+      "title": "Transition",
+      "type": "object"
+    },
+    "Workflow": {
+      "additionalProperties": false,
+      "properties": {
+        "entry_state": {
+          "$ref": "#/$defs/CaseStatus"
+        },
+        "transitions": {
+          "items": {
+            "$ref": "#/$defs/Transition"
+          },
+          "minItems": 1,
+          "title": "Transitions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "entry_state",
+        "transitions"
+      ],
+      "title": "Workflow",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "applicability": {
+      "$ref": "#/$defs/Applicability"
+    },
+    "code": {
+      "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+      "title": "Code",
+      "type": "string"
+    },
+    "exception_codes": {
+      "items": {
+        "$ref": "#/$defs/ExceptionCode"
+      },
+      "minItems": 1,
+      "title": "Exception Codes",
+      "type": "array"
+    },
+    "identity_resolution": {
+      "$ref": "#/$defs/IdentityResolution"
+    },
+    "legal_review": {
+      "enum": [
+        "PENDING",
+        "APPROVED"
+      ],
+      "title": "Legal Review",
+      "type": "string"
+    },
+    "retention_rules": {
+      "items": {
+        "$ref": "#/$defs/RetentionRule"
+      },
+      "minItems": 1,
+      "title": "Retention Rules",
+      "type": "array"
+    },
+    "rights": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Right"
+      },
+      "propertyNames": {
+        "$ref": "#/$defs/RightCode"
+      },
+      "title": "Rights",
+      "type": "object"
+    },
+    "sla": {
+      "additionalProperties": {
+        "$ref": "#/$defs/SlaRule"
+      },
+      "propertyNames": {
+        "$ref": "#/$defs/RightCode"
+      },
+      "title": "Sla",
+      "type": "object"
+    },
+    "title": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "title": "Version",
+      "type": "string"
+    },
+    "workflows": {
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{1,31}$": {
+          "$ref": "#/$defs/Workflow"
+        }
+      },
+      "title": "Workflows",
+      "type": "object"
+    }
+  },
+  "required": [
+    "code",
+    "version",
+    "title",
+    "legal_review",
+    "applicability",
+    "rights",
+    "sla",
+    "identity_resolution",
+    "exception_codes",
+    "retention_rules",
+    "workflows"
+  ],
+  "title": "PolicyPack",
+  "type": "object"
+}

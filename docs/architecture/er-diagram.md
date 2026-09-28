@@ -18,6 +18,9 @@ erDiagram
   PRIVACY_REQUEST ||--|{ REQUEST_RIGHT : invokes
   PRIVACY_REQUEST ||--o{ IDENTITY_VERIFICATION : "verified by"
   PRIVACY_REQUEST ||--o{ DP_SESSION : "tracked via"
+  PRIVACY_REQUEST ||--o{ REQUEST_IDENTIFIER : "resolved to"
+  TENANT ||--o{ TENANT_POLICY_PACK : enables
+  TENANT_POLICY_PACK }o--|| POLICY_PACK : "pins version"
   PRIVACY_REQUEST ||--o| JURISDICTION_DECISION : "governed by"
   JURISDICTION_DECISION }o--|| POLICY_PACK : "pins version"
   PRIVACY_REQUEST ||--o{ DISCOVERY_JOB : runs
@@ -84,6 +87,23 @@ erDiagram
     string right_code "ERASURE|ACCESS|CORRECTION|CONSENT_WITHDRAWAL|GRIEVANCE|NOMINATION"
     string enc_details
   }
+  REQUEST_IDENTIFIER {
+    uuid id PK
+    uuid tenant_id FK
+    uuid request_id FK
+    string type "EMAIL|PHONE|CUSTOMER_ID"
+    string bidx "HMAC blind index"
+    string enc_value
+    string assurance "VERIFIED|CLAIMED"
+    string source "OTP|FORM"
+  }
+  TENANT_POLICY_PACK {
+    uuid tenant_id PK
+    string pack_code PK
+    string pack_version
+    int priority
+    bool enabled
+  }
   DP_SESSION {
     uuid id PK
     uuid tenant_id FK
@@ -112,8 +132,9 @@ erDiagram
     uuid id PK
     uuid tenant_id FK
     uuid request_id FK
-    string regulation "DPDP"
-    uuid policy_pack_id FK
+    string outcome "APPLICABLE|NO_APPLICABLE_PACK"
+    string regulation "pack code, e.g. DPDP"
+    uuid policy_pack_id FK "null if no pack applies"
     string policy_pack_version "1.0.0"
     json inputs "residency claim, tenant config"
     string rationale

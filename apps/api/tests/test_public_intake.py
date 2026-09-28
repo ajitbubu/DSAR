@@ -13,6 +13,8 @@ from tests.conftest import bff, tenant_slug
 SUBMIT = "/v1/public/requests"
 EMAIL = "Priya.Sharma@Example.co.in"
 NAME = "Priya Sharma"
+# Unicode digits pass str.isdigit() and plain \d; E.164 must be ASCII.
+ARABIC_INDIC_PHONE = "+\u0669\u0661\u0669\u0668\u0667\u0666\u0665\u0664\u0663\u0662"
 
 
 def form(slug: str, **overrides: Any) -> dict[str, Any]:
@@ -147,6 +149,12 @@ def test_unknown_or_suspended_tenant_is_404(
         {"details": "d" * 2001},
         {"contact": {"channel": "EMAIL", "value": "not-an-email"}},
         {"contact": {"channel": "SMS", "value": "98765 43210"}},
+        {
+            "contact": {
+                "channel": "SMS",
+                "value": ARABIC_INDIC_PHONE,
+            }
+        },
         {"contact": {"channel": "FAX", "value": "+919876543210"}},
         {"contact": {"channel": "EMAIL", "value": EMAIL, "extra": "x"}},
         {"rights": []},

@@ -19,13 +19,21 @@ class RoleCode(StrEnum):
 class Permission(StrEnum):
     SELF_READ = "self:read"
     AUDIT_VERIFY = "audit:verify"
+    POLICY_READ = "policy:read"
+    # Referenced by policy-pack workflow transitions (enforced from M4/M5 onward).
+    CASE_REVIEW = "case:review"
+    CASE_APPROVE = "case:approve"
+    CASE_CLOSE = "case:close"
 
+
+_BASE = frozenset({Permission.SELF_READ, Permission.POLICY_READ})
 
 ROLE_PERMISSIONS: dict[RoleCode, frozenset[Permission]] = {
-    RoleCode.TENANT_ADMIN: frozenset({Permission.SELF_READ}),
-    RoleCode.PRIVACY_ANALYST: frozenset({Permission.SELF_READ}),
-    RoleCode.APPROVER: frozenset({Permission.SELF_READ}),
-    RoleCode.AUDITOR: frozenset({Permission.SELF_READ, Permission.AUDIT_VERIFY}),
+    RoleCode.TENANT_ADMIN: _BASE,
+    RoleCode.PRIVACY_ANALYST: _BASE | {Permission.CASE_REVIEW, Permission.CASE_CLOSE},
+    # Approvers only approve; maker-checker separation is enforced again in M5.
+    RoleCode.APPROVER: _BASE | {Permission.CASE_APPROVE},
+    RoleCode.AUDITOR: _BASE | {Permission.AUDIT_VERIFY},
 }
 
 

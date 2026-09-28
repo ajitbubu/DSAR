@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 TEST_DB_ENV := IDP_REQUIRE_DB=1
 
-.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e lint fmt typecheck contracts smoke
+.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e lint fmt typecheck contracts smoke policy-pin policy-schema
 
 help:  ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -47,6 +47,12 @@ lint:  ## Lint and type-check everything
 fmt:  ## Format Python
 	uv run ruff check --fix .
 	uv run ruff format .
+
+policy-pin:  ## Pin a pack's hash in the manifest: make policy-pin PACK=packages/policy-packs/dpdp/1.0.0/pack.yaml
+	uv run python -m idprivacy.scripts.policy_packs pin $(PACK)
+
+policy-schema:  ## Regenerate the policy-pack JSON Schema
+	uv run python -m idprivacy.scripts.policy_packs schema
 
 contracts:  ## Regenerate contracts/openapi.json from the API
 	uv run python -m idprivacy.scripts.export_openapi contracts/openapi.json

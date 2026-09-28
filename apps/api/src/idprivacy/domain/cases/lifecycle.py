@@ -64,6 +64,8 @@ class IntakeEvent(StrEnum):
     ISSUE_CHALLENGE = "ISSUE_CHALLENGE"
     VERIFY = "VERIFY"
     FAIL_VERIFICATION = "FAIL_VERIFICATION"
+    DETERMINE_JURISDICTION = "DETERMINE_JURISDICTION"
+    ROUTE_TO_MANUAL = "ROUTE_TO_MANUAL"
     CANCEL = "CANCEL"
 
 
@@ -74,6 +76,9 @@ _TRANSITIONS: dict[tuple[CaseStatus, IntakeEvent], CaseStatus] = {
         CaseStatus.PENDING_VERIFICATION,
         IntakeEvent.FAIL_VERIFICATION,
     ): CaseStatus.VERIFICATION_FAILED,
+    # Hand-off to the pinned policy pack's workflow (or to manual handling).
+    (CaseStatus.VERIFIED, IntakeEvent.DETERMINE_JURISDICTION): CaseStatus.JURISDICTION_DETERMINED,
+    (CaseStatus.VERIFIED, IntakeEvent.ROUTE_TO_MANUAL): CaseStatus.PENDING_MANUAL_HANDLING,
     **{(s, IntakeEvent.CANCEL): CaseStatus.CANCELLED for s in CANCELLABLE},
 }
 
@@ -98,6 +103,29 @@ def transition(
     target = _TRANSITIONS.get((current, event))
     if target is None:
         raise InvalidTransition(f"{event} not allowed from {current}")
+    apply_status(
+        session,
+        request,
+        event=event.value,
+        target=target,
+        actor_type=actor_type,
+        actor_ref=actor_ref,
+    )
+    return target
+
+
+def apply_status(
+    session: Session,
+    request: PrivacyRequest,
+    *,
+    event: str,
+    target: CaseStatus,
+    actor_type: ActorType,
+    actor_ref: str,
+    details: dict[str, str] | None = None,
+) -> None:
+    """Persist a validated transition: optimistic-lock the row, bump version, audit it."""
+    current = CaseStatus(request.status)
     result = session.execute(
         update(PrivacyRequest)
         .where(PrivacyRequest.id == request.id, PrivacyRequest.version == request.version)
@@ -115,6 +143,5 @@ def transition(
         action="case.transitioned",
         object_type="privacy_request",
         object_id=request.id,
-        details={"event": event.value, "from": current.value, "to": target.value},
+        details={"event": event, "from": current.value, "to": target.value, **(details or {})},
     )
-    return target

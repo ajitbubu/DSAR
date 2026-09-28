@@ -32,7 +32,8 @@ _SENSITIVE_KEY_PARTS = (
 # Keys that contain a sensitive part but are safe structural metadata.
 _SAFE_KEYS = frozenset({"event", "logger", "logger_name", "level", "timestamp", "status_code"})
 
-_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+# The TLD must be alphabetic, so identifiers like "PACK@1.0.0" aren't mistaken for emails.
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[^\W\d_]{2,}\b")
 # Phone-like digit runs. The look-arounds exclude UUID segments and identifier fragments.
 _PHONE_RE = re.compile(r"(?<![\w-])\+?\d(?:[\s-]?\d){8,14}(?![\w-])")
 

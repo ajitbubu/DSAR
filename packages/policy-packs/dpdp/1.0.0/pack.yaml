@@ -1,0 +1,130 @@
+# DPDP policy pack v1.0.0
+#
+# ENGINEERING DRAFT: legal_review is PENDING. Section references show where each item
+# comes from in the Act. Response deadlines, verification strength and retention
+# exceptions need legal sign-off (open decisions D-9, D-14) before production use.
+#
+# Published packs are immutable: any change needs a new version and a new manifest pin
+# (`make policy-pin`). Cases stay pinned to the version they were decided under.
+
+code: DPDP
+version: 1.0.0
+title: Digital Personal Data Protection Act, 2023 (India)
+legal_review: PENDING
+
+# Processing in India, or offering goods/services to Data Principals in India.
+# Approximated with the tenant's processing region and the requester's stated residency.
+applicability:
+  any_of:
+    - tenant_region: [IN]
+    - requester_residency: [IN]
+
+rights:
+  ERASURE:
+    title: Right to erasure of personal data
+    reference: "s.12"
+    executable: true
+    workflow: erasure
+    accepted_verification: [OTP_EMAIL, OTP_SMS]
+  ACCESS:
+    title: Right to access information about personal data
+    reference: "s.11"
+    executable: false
+    workflow: manual
+    accepted_verification: [OTP_EMAIL, OTP_SMS]
+  CORRECTION:
+    title: Right to correction, completion and updating
+    reference: "s.12"
+    executable: false
+    workflow: manual
+    accepted_verification: [OTP_EMAIL, OTP_SMS]
+  CONSENT_WITHDRAWAL:
+    title: Withdrawal of consent
+    reference: "s.6(4)"
+    executable: false
+    workflow: manual
+    accepted_verification: [OTP_EMAIL, OTP_SMS]
+  GRIEVANCE:
+    title: Right of grievance redressal
+    reference: "s.13"
+    executable: false
+    workflow: manual
+    accepted_verification: [OTP_EMAIL, OTP_SMS]
+  NOMINATION:
+    title: Right to nominate
+    reference: "s.14"
+    executable: false
+    workflow: manual
+    accepted_verification: [OTP_EMAIL, OTP_SMS]
+
+# response_days stays null until legal validates it (D-9). The platform doesn't set a
+# due date from an unvalidated rule, and the dashboard flags the case as UNVALIDATED.
+sla:
+  ERASURE: { response_days: null, clock_start: VERIFIED, validated: false }
+  ACCESS: { response_days: null, clock_start: VERIFIED, validated: false }
+  CORRECTION: { response_days: null, clock_start: VERIFIED, validated: false }
+  CONSENT_WITHDRAWAL: { response_days: null, clock_start: VERIFIED, validated: false }
+  GRIEVANCE: { response_days: null, clock_start: VERIFIED, validated: false }
+  NOMINATION: { response_days: null, clock_start: VERIFIED, validated: false }
+
+# Only identifiers the requester has proven control of drive discovery. A typed-in
+# customer ID is a claim until an analyst links it. Otherwise anyone could request
+# erasure of someone else's account.
+identity_resolution:
+  discovery_assurance: [VERIFIED]
+
+exception_codes:
+  - code: LEGAL_OBLIGATION
+    label: Retention is required to comply with a law in force
+    reference: "s.8(7)"
+  - code: LEGAL_HOLD
+    label: Subject to a legal hold or pending proceedings
+  - code: STATUTORY_EXEMPTION
+    label: A statutory exemption applies
+    reference: "s.17"
+  - code: LINK_UNCONFIRMED
+    label: The record's link to the requester isn't confirmed
+
+# Evaluated in order, first match wins (the engine lands in M4). Every decision is
+# reviewed by an analyst and authorised by a separate approver before anything is deleted.
+retention_rules:
+  - id: legal-hold
+    when: { legal_hold: true }
+    decision: RETAIN
+    exception_code: LEGAL_HOLD
+  - id: unconfirmed-link
+    when: { identifier_assurance: CLAIMED }
+    decision: MANUAL_REVIEW
+    exception_code: LINK_UNCONFIRMED
+  - id: financial-records
+    when: { data_categories_any: [financial] }
+    decision: MANUAL_REVIEW
+  - id: default-erase
+    when: {}
+    decision: DELETE
+
+workflows:
+  erasure:
+    entry_state: JURISDICTION_DETERMINED
+    transitions:
+      - { event: START_DISCOVERY, from: [JURISDICTION_DETERMINED], to: DISCOVERY_IN_PROGRESS, actor: SYSTEM }
+      - { event: DISCOVERY_FINISHED, from: [DISCOVERY_IN_PROGRESS], to: DISCOVERY_COMPLETE, actor: SYSTEM }
+      - { event: RETENTION_EVALUATED, from: [DISCOVERY_COMPLETE], to: RETENTION_EVALUATED, actor: SYSTEM }
+      - { event: BEGIN_REVIEW, from: [RETENTION_EVALUATED], to: UNDER_REVIEW, actor: USER, permission: "case:review" }
+      - { event: SUBMIT_FOR_APPROVAL, from: [UNDER_REVIEW], to: PENDING_APPROVAL, actor: USER, permission: "case:review", guards: [no_unresolved_manual_review] }
+      - { event: APPROVE, from: [PENDING_APPROVAL], to: APPROVED, actor: USER, permission: "case:approve", guards: [approval_valid_for_version] }
+      - { event: REJECT, from: [PENDING_APPROVAL], to: REJECTED, actor: USER, permission: "case:approve" }
+      - { event: REWORK, from: [REJECTED], to: UNDER_REVIEW, actor: USER, permission: "case:review" }
+      - { event: START_FULFILMENT, from: [APPROVED, RECONCILIATION_REQUIRED], to: FULFILMENT_IN_PROGRESS, actor: SYSTEM }
+      - { event: START_VERIFICATION, from: [FULFILMENT_IN_PROGRESS], to: VERIFICATION_IN_PROGRESS, actor: SYSTEM, guards: [all_fulfilment_tasks_terminal] }
+      - { event: VERIFICATION_PASSED, from: [VERIFICATION_IN_PROGRESS], to: VERIFIED_COMPLETE, actor: SYSTEM }
+      - { event: VERIFICATION_FAILED, from: [VERIFICATION_IN_PROGRESS], to: RECONCILIATION_REQUIRED, actor: SYSTEM }
+      - { event: EVIDENCE_READY, from: [VERIFIED_COMPLETE], to: EVIDENCE_GENERATED, actor: SYSTEM }
+      - { event: RESPOND, from: [EVIDENCE_GENERATED], to: RESPONDED, actor: SYSTEM }
+      - { event: CLOSE, from: [RESPONDED], to: CLOSED, actor: SYSTEM, guards: [all_fulfilment_tasks_terminal] }
+
+  # Placeholder for rights without an executable workflow in v1.
+  manual:
+    entry_state: PENDING_MANUAL_HANDLING
+    transitions:
+      - { event: CLOSE_MANUALLY, from: [PENDING_MANUAL_HANDLING], to: CLOSED, actor: USER, permission: "case:close" }

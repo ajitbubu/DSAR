@@ -6,7 +6,7 @@ A DPDP-first platform for automating Data Principal / Data Subject rights reques
 - Milestones and acceptance criteria: [`docs/milestones.md`](docs/milestones.md)
 - Open security and tenancy decisions: [`docs/open-decisions.md`](docs/open-decisions.md)
 
-**Status:** M0 (foundations) and M1 (Data Principal intake and OTP verification) complete.
+**Status:** M0 (foundations), M1 (Data Principal intake and OTP verification) and M2 (policy packs, jurisdiction, identity resolution) complete.
 
 ## Layout
 
@@ -15,6 +15,7 @@ apps/api                 FastAPI + shared domain package `idprivacy` (Alembic mi
 apps/worker              Celery workers + outbox relay (`idprivacy_worker`)
 apps/web                 Next.js UI + BFF (pages arrive in M1)
 packages/mock-connectors Simulated CRM / document store (filled in during M3)
+packages/policy-packs    Versioned regulation packs (DPDP 1.0.0), manifest of pinned hashes, JSON Schema
 contracts/openapi.json   Generated API contract; tests fail on drift (`make contracts`)
 infra/compose            Docker Compose stack, Postgres role init, Keycloak dev realm, S3 stand-in
 ```
@@ -63,3 +64,11 @@ Every credential in this repo (`.env.example`, the Keycloak realm, `seaweedfs/s3
 - **Intake:** allowlist schemas with length limits, no input echoed in 422 responses, 413 above 64 KB (declared or streamed), and rate limits per IP and per contact (against OTP-bombing). Names, identifiers and details are envelope-encrypted, and the contact is looked up by blind index.
 - **OTP:** a keyed-HMAC hash, attempts counted under a row lock, a lock after 5 failed attempts, expiry, single use, and resends that don't reset the counter. The mock provider's inspection endpoint exists only in `test`.
 - **Tracking session:** an opaque 256-bit token stored hashed and bound to one request, with sliding idle and absolute expiry.
+
+## What M2 provides
+
+- **Policy packs:** `packages/policy-packs/dpdp/1.0.0/pack.yaml` defines the six-right catalogue (only erasure is executable), the erasure and manual workflows, SLA placeholders (unvalidated, so no due date is set), the exception vocabulary and retention rules. Changing a pack means a new version plus `make policy-pin`.
+- **Integrity:** manifest hash pinning, publishing refuses changed content, the DB blocks edits by trigger, and the registry re-hashes on load.
+- **Pipeline:** OTP verification writes a `case.verified` outbox message. The worker resolves identity, then decides jurisdiction from the tenant's enabled packs and their declared applicability, then pins the case to `code@version` or routes it to manual handling.
+- **Identity resolution:** conservative normalisation (IDNA, NFC, E.164, ASCII digits only) and assurance levels. Only the OTP-verified contact is VERIFIED.
+- **Workflow engine:** pack transitions are enforced for actor type, permission and tenant, and unimplemented guards fail closed. An architecture test keeps regulation names out of platform code.

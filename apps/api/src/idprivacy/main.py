@@ -9,15 +9,14 @@ import structlog
 from fastapi import FastAPI
 from sqlalchemy import text
 
-from idprivacy.api.routes import audit, health, me, public, test_support
+from idprivacy.api.routes import audit, health, me, policy, public, test_support
 from idprivacy.config import Settings, get_settings
 from idprivacy.domain.identity.otp import build_otp_provider
 from idprivacy.platform.auth.oidc import KeyResolver, OidcVerifier, jwks_key_resolver
-from idprivacy.platform.crypto import FieldCipher, build_key_provider
-from idprivacy.platform.db import make_engine
 from idprivacy.platform.http import BodySizeLimitMiddleware, install_problem_handlers
 from idprivacy.platform.logging import configure_logging
 from idprivacy.platform.ratelimit import MemoryRateLimiter, RateLimiter, RedisRateLimiter
+from idprivacy.runtime import build_services
 
 
 def _probes(settings: Settings, engine: Any) -> dict[str, Callable[[], None]]:
@@ -68,7 +67,8 @@ def create_app(
         docs_url="/docs" if settings.env in {"local", "test"} else None,
         redoc_url=None,
     )
-    engine = make_engine(settings.database_url_app.get_secret_value())
+    svc = build_services(settings)
+    engine = svc.engine
     app.state.settings = settings
     app.state.log = structlog.get_logger("idprivacy.api")
     app.state.app_engine = engine
@@ -78,9 +78,9 @@ def create_app(
         algorithms=settings.oidc_algorithms,
         key_resolver=key_resolver or jwks_key_resolver(settings.oidc_jwks_url),
     )
-    assert settings.local_master_key is not None  # guaranteed by Settings validation
-    app.state.keys = build_key_provider(settings.local_master_key.get_secret_value())
-    app.state.cipher = FieldCipher(app.state.keys)
+    app.state.services = svc
+    app.state.keys = svc.keys
+    app.state.cipher = svc.cipher
     app.state.otp_provider = build_otp_provider(settings)
     app.state.rate_limiter = _rate_limiter(settings)
     app.state.readiness_probes = (
@@ -93,6 +93,7 @@ def create_app(
     app.include_router(me.router)
     app.include_router(audit.router)
     app.include_router(public.router)
+    app.include_router(policy.router)
     if settings.env == "test" and settings.otp_provider == "mock":
         app.include_router(test_support.router)
     return app

@@ -9,6 +9,8 @@ COPY pyproject.toml uv.lock .python-version ./
 COPY apps/api apps/api
 COPY apps/worker apps/worker
 COPY packages/mock-connectors packages/mock-connectors
+COPY packages/policy-packs packages/policy-packs
+ENV IDP_POLICY_PACKS_DIR=/src/packages/policy-packs
 
 FROM base AS api
 RUN uv sync --frozen --no-dev --package idprivacy --no-editable

@@ -25,10 +25,13 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from idprivacy.config import Settings
+from idprivacy.domain.policy.loader import load_all
+from idprivacy.domain.policy.registry import publish
 from idprivacy.main import create_app
-from idprivacy.platform.models import AppUser, Role, Tenant, UserRole
+from idprivacy.platform.models import AppUser, Role, Tenant, TenantPolicyPack, UserRole
 
 API_DIR = Path(__file__).resolve().parents[1]
+POLICY_PACKS = API_DIR.parents[1] / "packages" / "policy-packs"
 ISSUER = "https://idp.test.invalid/realms/idprivacy"
 AUDIENCE = "idprivacy-api"
 MASTER_KEY_B64 = "ZGV2LW9ubHktbWFzdGVyLWtleS0zMi1ieXRlcyEhISE="
@@ -84,6 +87,11 @@ def migrated_db() -> None:
     cfg.attributes["url"] = MIGRATOR_URL
     command.downgrade(cfg, "base")
     command.upgrade(cfg, "head")
+    engine = create_engine(MIGRATOR_URL)
+    with Session(engine) as s, s.begin():
+        for loaded in load_all(POLICY_PACKS):
+            publish(s, loaded)
+    engine.dispose()
 
 
 @pytest.fixture(scope="session")
@@ -108,11 +116,34 @@ def relay_engine(migrated_db: None) -> Iterator[Engine]:
 
 
 @pytest.fixture
-def make_tenant(migrator_engine: Engine) -> Callable[[], uuid.UUID]:
-    def _make() -> uuid.UUID:
+def make_tenant(migrator_engine: Engine) -> Callable[..., uuid.UUID]:
+    """A tenant processing in India with the DPDP pack enabled, unless overridden."""
+
+    def _make(
+        region: str | None = "IN", packs: tuple[tuple[str, str], ...] = (("DPDP", "1.0.0"),)
+    ) -> uuid.UUID:
         tid = uuid.uuid4()
         with Session(migrator_engine) as s, s.begin():
-            s.add(Tenant(id=tid, slug=tenant_slug(tid), name="Test tenant", status="ACTIVE"))
+            s.add(
+                Tenant(
+                    id=tid,
+                    slug=tenant_slug(tid),
+                    name="Test tenant",
+                    status="ACTIVE",
+                    data_region=region,
+                )
+            )
+            s.flush()
+            for priority, (code, version) in enumerate(packs):
+                s.add(
+                    TenantPolicyPack(
+                        tenant_id=tid,
+                        pack_code=code,
+                        pack_version=version,
+                        priority=priority,
+                        enabled=True,
+                    )
+                )
         return tid
 
     return _make

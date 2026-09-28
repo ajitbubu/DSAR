@@ -183,6 +183,11 @@ class PrivacyRequest(Base):
     submitted_at: Mapped[datetime] = _created_at()
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Pinned at jurisdiction time (M2); never changes for the life of the case.
+    policy_pack_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("policy_pack.id")
+    )
+    workflow_code: Mapped[str | None] = mapped_column(String(32))
 
 
 class RequestRight(Base):
@@ -245,3 +250,82 @@ class DpSession(Base):
     idle_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     absolute_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ---------- M2: policy packs, jurisdiction, identity resolution ---------------------
+
+
+class PolicyPackRow(Base):
+    """Global, immutable catalogue of published packs (not tenant-owned)."""
+
+    __tablename__ = "policy_pack"
+    __table_args__ = (UniqueConstraint("code", "version", name="uq_policy_pack_code_version"),)
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    code: Mapped[str] = mapped_column(String(32), nullable=False)
+    version: Mapped[str] = mapped_column(String(32), nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    content: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class TenantPolicyPack(Base):
+    """Which pack versions a tenant has enabled, in evaluation order."""
+
+    __tablename__ = "tenant_policy_pack"
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenant.id"), primary_key=True
+    )
+    pack_code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    pack_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
+
+
+class JurisdictionDecision(Base):
+    __tablename__ = "jurisdiction_decision"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "request_id", name="uq_jurisdiction_decision_request"),
+        ForeignKeyConstraint(
+            ["tenant_id", "request_id"],
+            ["privacy_request.tenant_id", "privacy_request.id"],
+            name="fk_jurisdiction_decision_request",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    policy_pack_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("policy_pack.id")
+    )
+    regulation: Mapped[str | None] = mapped_column(String(32))
+    policy_pack_version: Mapped[str | None] = mapped_column(String(32))
+    inputs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class RequestIdentifier(Base):
+    """Canonical identifier set for one request, with how strongly each is established."""
+
+    __tablename__ = "request_identifier"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "request_id", "type", "bidx", name="uq_request_identifier_value"
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "request_id"],
+            ["privacy_request.tenant_id", "privacy_request.id"],
+            name="fk_request_identifier_request",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk()
+    request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    type: Mapped[str] = mapped_column(String(16), nullable=False)
+    bidx: Mapped[str] = mapped_column(String(64), nullable=False)
+    enc_value: Mapped[str] = mapped_column(Text, nullable=False)
+    assurance: Mapped[str] = mapped_column(String(16), nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = _created_at()

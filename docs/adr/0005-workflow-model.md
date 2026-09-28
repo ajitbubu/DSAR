@@ -14,6 +14,13 @@ Regulation rules must not be hard-coded in handlers. Cases are long-running (day
 5. Each case pins `policy_pack_id@version` at jurisdiction decision. In-flight cases never switch pack versions.
 6. SLA clocks: `due_at` is computed from `SLA_POLICY` when the clock-start event fires. A periodic Celery beat task flags breaches (values: D-9).
 
+## Implementation notes (M2)
+- Intake transitions (submit → verify → hand-off) apply to every regulation and live in `domain/cases/lifecycle.py`. Everything after `JURISDICTION_DETERMINED` comes from the pinned pack's workflow and runs through `domain/policy/workflow.fire`.
+- Guards named by a pack but not yet implemented fail closed, so their transition is refused.
+- The pack model (`domain/policy/model.py`) is the schema. `packages/policy-packs/schema/policy-pack.schema.json` is generated from it for pack authors.
+- Pack integrity: the manifest pins each hash, publishing refuses changed content under an existing version, a DB trigger enforces immutability, and the registry re-hashes on load.
+- Verification parameters (OTP TTL, attempts) stay in platform settings, because the OTP is issued before the pack is known. Each pack declares which verification methods it accepts per right, and the jurisdiction step enforces that.
+
 ## Consequences
 + Adding GDPR later = new pack + possibly new guard functions. No handler changes.
 + The outbox removes dual-write bugs between DB and broker.

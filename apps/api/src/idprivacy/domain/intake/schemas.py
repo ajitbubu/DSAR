@@ -9,7 +9,7 @@ from typing import Annotated, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 from pydantic.networks import validate_email
 
-E164 = re.compile(r"^\+[1-9]\d{7,14}$")
+E164 = re.compile(r"^\+[1-9]\d{7,14}$", re.ASCII)  # ASCII: \d matches all Unicode digits
 
 
 class RightCode(StrEnum):

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from idprivacy.config import DEV_ENVIRONMENTS
 from idprivacy.domain.audit import service as audit
 from idprivacy.platform.crypto import FieldCipher, build_key_provider
-from idprivacy.platform.models import AppUser, Role, Tenant, UserRole
+from idprivacy.platform.models import AppUser, Role, Tenant, TenantPolicyPack, UserRole
 
 ISSUER = os.environ.get("IDP_OIDC_ISSUER", "http://localhost:8080/realms/idprivacy")
 
@@ -65,13 +65,30 @@ USERS = {
     ],
 }
 ROLE_CODES = ("TENANT_ADMIN", "PRIVACY_ANALYST", "APPROVER", "AUDITOR")
+# Both dev tenants process data in India and enable the DPDP pack.
+DEV_REGION = "IN"
+DEV_PACKS = [("DPDP", "1.0.0")]
 
 
 def seed(session: Session, cipher: FieldCipher) -> None:
     for slug, (name, tenant_id) in TENANTS.items():
-        if session.get(Tenant, tenant_id) is None:
-            session.add(Tenant(id=tenant_id, slug=slug, name=name, status="ACTIVE"))
-            session.flush()
+        tenant = session.get(Tenant, tenant_id)
+        if tenant is None:
+            tenant = Tenant(id=tenant_id, slug=slug, name=name, status="ACTIVE")
+            session.add(tenant)
+        tenant.data_region = DEV_REGION
+        session.flush()
+        for priority, (code, version) in enumerate(DEV_PACKS):
+            if session.get(TenantPolicyPack, (tenant_id, code)) is None:
+                session.add(
+                    TenantPolicyPack(
+                        tenant_id=tenant_id,
+                        pack_code=code,
+                        pack_version=version,
+                        priority=priority,
+                        enabled=True,
+                    )
+                )
         roles: dict[str, uuid.UUID] = {}
         for code in ROLE_CODES:
             role = session.execute(

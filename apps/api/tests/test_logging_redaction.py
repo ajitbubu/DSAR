@@ -55,3 +55,15 @@ def test_redact_keeps_uuid_segments_and_ints() -> None:
         "object_id": UUID,
         "seq": 12345678901,
     }
+
+
+@pytest.mark.parametrize("value", ["DPDP@1.0.0", "pack SLATEST@9.9.9 applies"])
+def test_versioned_references_are_not_mistaken_for_emails(value: str) -> None:
+    assert redact({"policy_pack": value}) == {"policy_pack": value}
+
+
+@pytest.mark.parametrize(
+    "value", ["a@b.co", "x.y+z@sub.example.co.in", "u@xn--exmple-cua.in", "priya@例え.jp"]
+)
+def test_email_variants_still_redacted(value: str) -> None:
+    assert value not in str(redact({"note": f"contact {value} today"}))

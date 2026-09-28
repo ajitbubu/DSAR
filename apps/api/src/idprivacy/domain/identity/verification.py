@@ -20,6 +20,7 @@ from idprivacy.config import Settings
 from idprivacy.domain.audit import service as audit
 from idprivacy.domain.cases.lifecycle import IntakeEvent, transition
 from idprivacy.domain.identity.otp import OtpProvider
+from idprivacy.platform import outbox
 from idprivacy.platform.auth import dp_session
 from idprivacy.platform.crypto import KeyProvider, blind_index
 from idprivacy.platform.models import IdentityVerification, PrivacyRequest
@@ -151,6 +152,13 @@ def confirm(
         challenge.verified_at = datetime.now(UTC)
         transition(
             session, request, IntakeEvent.VERIFY, actor_type="DATA_PRINCIPAL", actor_ref=actor
+        )
+        # Hand the case to the post-verification pipeline (worker), atomically.
+        outbox.enqueue(
+            session,
+            tenant_id=challenge.tenant_id,
+            topic="case.verified",
+            payload={"request_id": request.id},
         )
         token, expires = dp_session.create(
             session, tenant_id=challenge.tenant_id, request_id=request.id, settings=settings

@@ -277,6 +277,47 @@
         "title": "OtpResent",
         "type": "object"
       },
+      "PackSummary": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "legal_review": {
+            "title": "Legal Review",
+            "type": "string"
+          },
+          "rights": {
+            "items": {
+              "$ref": "#/components/schemas/RightSummary"
+            },
+            "title": "Rights",
+            "type": "array"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "version",
+          "title",
+          "sha256",
+          "legal_review",
+          "rights"
+        ],
+        "title": "PackSummary",
+        "type": "object"
+      },
       "PublicCaseStatus": {
         "properties": {
           "canCancel": {
@@ -348,6 +389,51 @@
         ],
         "title": "RightCode",
         "type": "string"
+      },
+      "RightSummary": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "executable": {
+            "title": "Executable",
+            "type": "boolean"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "sla_validated": {
+            "title": "Sla Validated",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "workflow": {
+            "title": "Workflow",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "title",
+          "reference",
+          "executable",
+          "workflow",
+          "sla_validated"
+        ],
+        "title": "RightSummary",
+        "type": "object"
       },
       "ValidationError": {
         "properties": {
@@ -484,6 +570,31 @@
         "summary": "Me",
         "tags": [
           "identity"
+        ]
+      }
+    },
+    "/v1/policy-packs": {
+      "get": {
+        "operationId": "list_policy_packs_v1_policy_packs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PackSummary"
+                  },
+                  "title": "Response List Policy Packs V1 Policy Packs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Policy Packs",
+        "tags": [
+          "policy"
         ]
       }
     },

@@ -26,7 +26,7 @@ Public erasure form, case ID issuance, mock OTP provider, confirm/resend, DP tra
 - CSRF: a BFF mutation without a valid token → 403.
 - UI screens 1–3 render. Vitest covers form validation.
 
-## M2 — Policy packs, jurisdiction and identity resolution
+## M2 — Policy packs, jurisdiction and identity resolution ✅
 DPDP pack v1.0.0 (rights catalogue with six rights, erasure workflow, placeholder workflows, retention rules, exception vocabulary, SLA placeholders). Pack loader with JSON-Schema validation and hash pinning. Jurisdiction decision. Identity resolution into canonical identifiers (lower-cased, normalised email; E.164 phone).
 
 **Acceptance**

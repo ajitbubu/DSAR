@@ -84,7 +84,7 @@ services:
     environment:
       <<: *python-env
       IDP_DATABASE_URL_MIGRATOR: postgresql+psycopg://idp_migrator:${IDP_MIGRATOR_PASSWORD:-dev-migrator}@postgres:5432/idprivacy
-    command: ["sh", "-c", "alembic upgrade head && python -m idprivacy.scripts.seed_dev"]
+    command: ["sh", "-c", "alembic upgrade head && python -m idprivacy.scripts.policy_packs publish && python -m idprivacy.scripts.seed_dev"]
     depends_on: { postgres: { condition: service_healthy } }
 
   api:

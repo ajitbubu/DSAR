@@ -38,3 +38,10 @@ def test_publisher_refuses_unknown_topics() -> None:
     env = Envelope(uuid.uuid4(), uuid.uuid4(), "unknown.topic", {})
     with pytest.raises(UnknownTopicError):
         celery_publisher(_FakeCelery())(env)
+
+
+def test_verified_case_topic_is_routed_to_the_pipeline_task() -> None:
+    from idprivacy_worker.tasks import TOPIC_TASKS
+
+    assert TOPIC_TASKS["case.verified"] == "idprivacy_worker.tasks.process_verified_case"
+    assert TOPIC_TASKS["case.verified"] in celery_app.tasks
