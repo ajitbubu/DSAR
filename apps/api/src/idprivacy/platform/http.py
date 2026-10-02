@@ -7,6 +7,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
+import anyio
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -65,6 +66,42 @@ class BodySizeLimitMiddleware:
             return message
 
         await self.app(scope, limited_receive, send)
+
+
+class AdmissionLimitMiddleware:
+    """Lets at most ``limit`` requests into the app at once; the rest wait in the event loop.
+
+    A request waiting longer than ``timeout`` seconds gets 503 with Retry-After. Keeping
+    in-flight requests below worker threads + DB connections prevents a deadlock: sync
+    routes hold their connection until after FastAPI serialises the response on another
+    worker thread, so unlimited concurrency can leave every thread waiting for a
+    connection while every connection waits for a thread.
+    """
+
+    def __init__(self, app: ASGIApp, limit: int, timeout: float) -> None:
+        self.app = app
+        self.limit = limit
+        self.timeout = timeout
+        self._slots: anyio.Semaphore | None = None  # created lazily, inside the event loop
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        if self._slots is None:
+            self._slots = anyio.Semaphore(self.limit)
+        try:
+            with anyio.fail_after(self.timeout):
+                await self._slots.acquire()
+        except TimeoutError:
+            await problem(503, "Service Unavailable", headers={"Retry-After": "1"})(
+                scope, receive, send
+            )
+            return
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            self._slots.release()
 
 
 def install_problem_handlers(app: FastAPI) -> None:

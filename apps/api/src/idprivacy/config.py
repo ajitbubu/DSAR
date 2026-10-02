@@ -11,6 +11,8 @@ from typing import Literal
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from idprivacy.platform.db import MAX_OVERFLOW, POOL_SIZE, WORKER_THREADS
+
 Environment = Literal["local", "test", "staging", "production"]
 DEV_ENVIRONMENTS: frozenset[str] = frozenset({"local", "test"})
 
@@ -53,6 +55,11 @@ class Settings(BaseSettings):
     # Service credential the web BFF presents on public (Data Principal) routes (ADR-0003).
     # A pre-shared secret for the MVP; production should use mTLS between BFF and API.
     bff_shared_secret: SecretStr = Field(min_length=32)
+
+    # Admission control: requests allowed inside the app at once; the rest wait, then get
+    # 503. Must stay below worker threads + DB connections, or the API can deadlock.
+    max_inflight_requests: int = Field(default=32, ge=1)
+    admission_timeout_seconds: float = Field(default=10.0, gt=0)
 
     # Public-intake hardening (threat model T-02, T-17).
     max_body_bytes: int = 64 * 1024
@@ -102,6 +109,9 @@ class Settings(BaseSettings):
                 errors.append("vault_addr and vault_token are required for the vault key provider")
             elif self.env not in DEV_ENVIRONMENTS and not self.vault_addr.startswith("https://"):
                 errors.append("vault_addr must use https outside local/test")
+        capacity = WORKER_THREADS + POOL_SIZE + MAX_OVERFLOW
+        if self.max_inflight_requests >= capacity:
+            errors.append(f"max_inflight_requests must be below {capacity} (threads + DB pool)")
         for name in (
             "rate_limit_submit_per_ip",
             "rate_limit_submit_per_contact",

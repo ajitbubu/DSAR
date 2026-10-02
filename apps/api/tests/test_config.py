@@ -52,3 +52,14 @@ def test_vault_key_provider_needs_https_outside_dev() -> None:
 def test_vault_key_provider_accepted_in_dev() -> None:
     s = make_settings(key_provider="vault", vault_addr="http://vault:8200", vault_token="t")
     assert s.key_provider == "vault"
+
+
+@pytest.mark.parametrize("inflight", [50, 200])
+def test_admission_limit_must_stay_below_threads_plus_pool(inflight: int) -> None:
+    # 40 worker threads + 10 DB connections: at 50 in flight the API can deadlock.
+    with pytest.raises(ValidationError, match="max_inflight_requests must be below 50"):
+        make_settings(max_inflight_requests=inflight)
+
+
+def test_default_admission_limit_is_safe() -> None:
+    assert make_settings().max_inflight_requests < 50

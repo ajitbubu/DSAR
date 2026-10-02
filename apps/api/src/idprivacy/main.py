@@ -28,6 +28,7 @@ from idprivacy.domain.evidence.uploads import MAX_UPLOAD_BYTES
 from idprivacy.domain.identity.otp import build_otp_provider
 from idprivacy.platform.auth.oidc import KeyResolver, OidcVerifier, jwks_key_resolver
 from idprivacy.platform.http import (
+    AdmissionLimitMiddleware,
     BodySizeLimitMiddleware,
     SecurityHeadersMiddleware,
     install_problem_handlers,
@@ -116,6 +117,11 @@ def create_app(
         readiness_probes if readiness_probes is not None else _probes(settings, engine)
     )
 
+    app.add_middleware(
+        AdmissionLimitMiddleware,
+        limit=settings.max_inflight_requests,
+        timeout=settings.admission_timeout_seconds,
+    )
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         BodySizeLimitMiddleware,
