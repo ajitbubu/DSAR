@@ -81,6 +81,7 @@ class CaseDetail(CaseSummary):
     version: int
     identifiers: list[MaskedIdentifier]
     jurisdiction: Jurisdiction | None
+    minimised_at: datetime | None  # requester identifiers shredded after closure (D-12)
 
 
 class MatchView(BaseModel):
@@ -233,6 +234,7 @@ def get_case(case_id: UUID, principal: Reader, db: Db, request: Request) -> Case
         )
         if decision
         else None,
+        minimised_at=case.minimised_at,
     )
 
 

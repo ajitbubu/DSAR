@@ -17,6 +17,7 @@ type CaseDetail = {
   workflow: string | null;
   identifiers: { type: string; masked: string; assurance: string }[];
   jurisdiction: { outcome: string; policy_pack: string | null; rationale: string } | null;
+  minimised_at: string | null;
 };
 
 export default async function CasePage({ params }: { params: Promise<{ id: string }> }) {
@@ -54,7 +55,12 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
       <section className="panel">
         <h2>Identifiers</h2>
         <p className="hint">Only verified identifiers are used to search connected systems.</p>
-        {c.identifiers.length === 0 ? (
+        {c.minimised_at ? (
+          <p className="empty">
+            The requester&apos;s identifiers were deleted on {when(c.minimised_at)}, after the
+            post-closure retention period.
+          </p>
+        ) : c.identifiers.length === 0 ? (
           <p className="empty">Identity resolution hasn&apos;t run yet for this case.</p>
         ) : (
         <div className="table-wrap">

@@ -110,6 +110,11 @@ def test_a_minimised_case_behaves_like_no_match(
     assert otp.peek(uuid.UUID(r.json()["challengeId"])) is None  # ...and no code sent
     staff = view(client, delivered)  # the staff view still opens without the export blob
     assert staff.status_code == 200 and staff.json()["records"] == []
+    # Regression: ISSUE-002 — the case overview couldn't tell "shredded" from "not resolved yet"
+    # Found by /qa on 2026-10-02
+    # Report: .gstack/qa-reports/run-20261002T184419Z/qa-report-dsar-2026-10-02.md
+    detail = client.get(f"/v1/cases/{delivered['rid']}", headers=delivered["analyst"]).json()
+    assert detail["identifiers"] == [] and detail["minimised_at"] is not None
 
 
 def test_a_legal_hold_blocks_minimisation_until_released(

@@ -299,6 +299,18 @@
               }
             ]
           },
+          "minimised_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimised At"
+          },
           "policy_pack": {
             "anyOf": [
               {
@@ -357,7 +369,8 @@
           "workflow",
           "version",
           "identifiers",
-          "jurisdiction"
+          "jurisdiction",
+          "minimised_at"
         ],
         "title": "CaseDetail",
         "type": "object"
