@@ -85,7 +85,7 @@ flowchart TB
 | Disclosure export, access report | encrypted blob | — | [disclosure/](../../apps/api/src/idprivacy/domain/disclosure/) |
 | Session token | — | `token_hash` (SHA-256) | [dp_session.py](../../apps/api/src/idprivacy/platform/auth/dp_session.py) |
 
-Operations:
+Operations (step by step in [How to set up Vault Transit key custody](../how-to/set-up-vault-key-custody.md)):
 
 - Set `IDP_KEY_PROVIDER=vault`, `IDP_VAULT_ADDR` (https outside local/test), `IDP_VAULT_TOKEN` and optionally `IDP_VAULT_TRANSIT_MOUNT`.
 - Run `make vault-provision` after adding a tenant. It is safe to repeat.
@@ -151,3 +151,9 @@ What survives minimisation: case ids, dates, the rights exercised, masked identi
 After minimisation, a returning sign-in or OTP resend for that case acts as if no case matches, and the staff disclosure view opens without the deleted export.
 
 Code: [minimisation/service.py](../../apps/api/src/idprivacy/domain/minimisation/service.py), [scripts/minimise_closed.py](../../apps/api/src/idprivacy/scripts/minimise_closed.py), migration [0012_minimisation.py](../../apps/api/migrations/versions/0012_minimisation.py).
+
+## Related
+
+- Tutorial: [See privacy protections in action](../tutorials/privacy-protections-walkthrough.md)
+- Reference: [Privacy protections reference](../reference/privacy-protections.md)
+- How-to: [Run post-closure minimisation](../how-to/run-post-closure-minimisation.md), [Set up Vault Transit key custody](../how-to/set-up-vault-key-custody.md), [Anonymise a record category instead of deleting it](../how-to/anonymise-instead-of-delete.md)

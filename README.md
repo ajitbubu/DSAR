@@ -5,6 +5,11 @@ A DPDP-first platform for automating Data Principal / Data Subject rights reques
 - Scope, architecture, threat model and ADRs: [`docs/`](docs/)
 - Milestones and acceptance criteria: [`docs/milestones.md`](docs/milestones.md)
 - Open security and tenancy decisions: [`docs/open-decisions.md`](docs/open-decisions.md)
+- Privacy protections (pseudonymisation, anonymisation, post-closure minimisation, Vault keys):
+  - Tutorial: [See privacy protections in action](docs/tutorials/privacy-protections-walkthrough.md)
+  - How-to: [run post-closure minimisation](docs/how-to/run-post-closure-minimisation.md), [set up Vault Transit key custody](docs/how-to/set-up-vault-key-custody.md), [anonymise a record category instead of deleting it](docs/how-to/anonymise-instead-of-delete.md)
+  - Reference: [Privacy protections reference](docs/reference/privacy-protections.md)
+  - Explanation: [Anonymisation and Pseudonymisation](docs/architecture/anonymisation-pseudonymisation.md)
 
 **Status:** the first vertical slice (Right to Erasure, milestones M0–M9) is complete and verified end to end. Production readiness depends on the open decisions in [`docs/open-decisions.md`](docs/open-decisions.md). See [`docs/architecture/production-deployment.md`](docs/architecture/production-deployment.md).
 
