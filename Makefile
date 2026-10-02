@@ -44,7 +44,7 @@ test-e2e:  ## Playwright against the running stack (`make up` first)
 
 # Coverage floors (fail below): stop regressions; raise them as tests are added.
 COV_API := 90
-COV_WORKER := 45
+COV_WORKER := 90
 COV_CONNECTORS := 90
 COV_FLAGS := --cov-report=term-missing:skip-covered
 

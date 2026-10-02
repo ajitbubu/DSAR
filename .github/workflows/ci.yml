@@ -55,9 +55,9 @@ jobs:
       - name: API tests (coverage floor 90%)
         working-directory: apps/api
         run: uv run pytest -q --cov=idprivacy --cov-report=term-missing:skip-covered --cov-fail-under=90
-      - name: Worker tests (coverage floor 45%)
+      - name: Worker tests (coverage floor 90%)
         working-directory: apps/worker
-        run: uv run pytest -q --cov=idprivacy_worker --cov-report=term-missing:skip-covered --cov-fail-under=45
+        run: uv run pytest -q --cov=idprivacy_worker --cov-report=term-missing:skip-covered --cov-fail-under=90
       - name: Connector SDK and mock-connector conformance (coverage floor 90%)
         run: >-
           uv run pytest -q packages/connector-sdk/tests packages/mock-connectors/tests

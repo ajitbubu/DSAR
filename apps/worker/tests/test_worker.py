@@ -71,3 +71,46 @@ def test_disclosure_export_topic_is_routed() -> None:
 
     assert TOPIC_TASKS["case.export_requested"] in celery_app.tasks
     assert TOPIC_TASKS["case.report_requested"] in celery_app.tasks
+
+
+class _Stop(BaseException):
+    """Breaks the relay's endless loop from inside time.sleep."""
+
+
+def _run_relay(monkeypatch: pytest.MonkeyPatch, results: list[Any]) -> list[float]:
+    from idprivacy_worker import relay
+
+    sleeps: list[float] = []
+    outcomes = iter(results)
+
+    def fake_relay_once(engine: object, publish: object) -> int:
+        r = next(outcomes)
+        if isinstance(r, Exception):
+            raise r
+        return int(r)
+
+    def fake_sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        if len(sleeps) == 2:
+            raise _Stop
+
+    monkeypatch.setenv("IDP_DATABASE_URL_RELAY", "postgresql://unused")
+    monkeypatch.setenv("IDP_RELAY_INTERVAL_SECONDS", "2")
+    monkeypatch.setattr(relay, "make_engine", lambda url: "engine")
+    monkeypatch.setattr(relay, "configure_logging", lambda: None)
+    monkeypatch.setattr(relay, "relay_once", fake_relay_once)
+    monkeypatch.setattr(relay.time, "sleep", fake_sleep)
+    with pytest.raises(_Stop):
+        relay.main()
+    return sleeps
+
+
+def test_relay_keeps_running_after_an_error_and_backs_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    # An error (e.g. the broker is down) must not kill the relay; it waits 5x and tries again.
+    assert _run_relay(monkeypatch, [RuntimeError("broker down"), 0]) == [10.0, 2.0]
+
+
+def test_relay_drains_without_sleeping_while_messages_keep_coming(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert _run_relay(monkeypatch, [100, 100, 0, 0]) == [2.0, 2.0]
