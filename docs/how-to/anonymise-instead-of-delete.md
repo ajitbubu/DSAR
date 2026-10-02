@@ -4,7 +4,7 @@ Change an erasure policy so that records in a data category are anonymised in th
 
 ## Prerequisites
 
-- Every connector that holds records of that category supports the `ANONYMIZE` action. Check its descriptor's `supported_actions`. The platform doesn't check this before dispatch, so an unsupported action fails at fulfilment (see Troubleshooting).
+- Every connector that holds records of that category supports the `ANONYMIZE` action. Check its descriptor's `supported_actions`. The platform never sends an unsupported action, but it only notices at fulfilment, after approval (see Troubleshooting).
 - Legal sign-off for the rule. The DPDP packs are engineering drafts until legal review (D-9, D-14).
 
 ## Steps
@@ -76,7 +76,7 @@ Moving a production tenant to a new version has no command or API yet. Today onl
 | Symptom | Cause | Fix |
 |---|---|---|
 | The record still shows **Delete** | An earlier rule matched first, or the case is pinned to an older pack | Move the rule up, or test with a new case |
-| Fulfilment task `FAILED_FINAL` with code `http_422` | The connector doesn't support `ANONYMIZE` (the mock document store supports only `DELETE` and `RESTRICT`) | Pick a different decision for that record type, or add the capability to the connector |
+| Fulfilment task `FAILED_FINAL` with code `action_unsupported` | The connector doesn't support `ANONYMIZE` (the mock document store supports only `DELETE` and `RESTRICT`) | Pick a different decision for that record type, or add the capability to the connector |
 | Verification fails although the connector reports `anonymized` | The rescan still finds the record, so the connector left an identifier on it | Fix the connector so that it removes every field the identifiers match on |
 | `make up` fails in `migrate` with a hash mismatch | The pack was edited after pinning | Run `make policy-pin` again on the new version. Never re-pin a published version |
 | `test_seed_dev.py` fails | `DEV_PACKS` doesn't name the newest pinned version | Update `DEV_PACKS` |

@@ -237,6 +237,49 @@ def test_retryable_failure_then_success(
     assert case_status(migrator_engine, rid) == "DISCOVERY_COMPLETE"
 
 
+def test_automatic_retries_stop_at_the_attempt_cap_and_the_failure_stays_visible(
+    client: TestClient,
+    make_tenant,
+    connector_factory,
+    mock_connectors: TestClient,
+    migrator_engine: Engine,
+) -> None:
+    # Regression: retry_failed reset every FAILED job to PENDING before each automatic
+    # retry, so once Celery gave up the job showed "pending" with no error, forever.
+    # Found by /engineering:testing-strategy on 2026-10-02.
+    tenant = make_tenant()
+    rid = case_ready_for_discovery(client, tenant)
+    mock_connectors.post(
+        "/__test__/faults",
+        json={"account": "acme", "system": "docs", "fail_next": 10, "status": 503},
+    )
+    app_engine = client.app.state.app_engine  # type: ignore[attr-defined]
+    for attempt in range(1, 4):
+        discover_all(client, tenant, rid, connector_factory)
+        with tenant_session(app_engine, TenantContext(tenant)) as s:
+            reset = discovery.retry_failed(s, request_id=rid, max_attempts=3)
+        assert reset == (1 if attempt < 3 else 0), attempt
+
+    status, code, attempts = (
+        migrator_engine.connect()
+        .execute(
+            text(
+                "SELECT j.status, j.error_code, j.attempts FROM discovery_job j "
+                "JOIN connector_config c ON c.id = j.connector_config_id "
+                "WHERE j.request_id = :r AND c.connector_id = 'mock-docs'"
+            ),
+            {"r": rid},
+        )
+        .one()
+    )
+    assert (status, code, attempts) == ("FAILED", "http_503", 3)  # staff can see why
+    assert case_status(migrator_engine, rid) == "DISCOVERY_IN_PROGRESS"
+
+    # A staff retry is a deliberate override: it is not capped.
+    with tenant_session(app_engine, TenantContext(tenant)) as s:
+        assert discovery.retry_failed(s, request_id=rid) == 1
+
+
 def _hostile(payload: bytes, status: int = 200) -> Callable[..., Any]:
     transport = httpx.MockTransport(lambda _r: httpx.Response(status, content=payload))
     return lambda cfg: HttpConnector(cfg.base_url, "tok", client=httpx.Client(transport=transport))

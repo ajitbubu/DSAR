@@ -254,17 +254,19 @@ def finish_if_complete(session: Session, *, request_id: UUID, registry: PolicyRe
     return True
 
 
-def retry_failed(session: Session, *, request_id: UUID) -> int:
-    """Reset FAILED jobs so the next run retries them. Returns how many were reset."""
-    jobs = (
-        session.execute(
-            select(DiscoveryJob)
-            .where(DiscoveryJob.request_id == request_id, DiscoveryJob.status == "FAILED")
-            .with_for_update()
-        )
-        .scalars()
-        .all()
+def retry_failed(session: Session, *, request_id: UUID, max_attempts: int | None = None) -> int:
+    """Reset FAILED jobs so the next run retries them. Returns how many were reset.
+
+    Automatic retries pass ``max_attempts``: a job that has used them up stays FAILED with
+    its error code, so staff see why the case is stuck and can retry it themselves
+    (a staff retry passes no cap).
+    """
+    query = select(DiscoveryJob).where(
+        DiscoveryJob.request_id == request_id, DiscoveryJob.status == "FAILED"
     )
+    if max_attempts is not None:
+        query = query.where(DiscoveryJob.attempts < max_attempts)
+    jobs = session.execute(query.with_for_update()).scalars().all()
     for job in jobs:
         job.status, job.error_code = "PENDING", None
     return len(jobs)

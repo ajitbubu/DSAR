@@ -147,7 +147,7 @@ Audit details go through log redaction (`platform/logging.py`), which replaces t
 
 The platform sends `execute_action(ANONYMIZE, source_record_ref, idempotency_key)` and doesn't decide which fields the connector removes. Verification passes only when the connector reports `ANONYMIZED` **and** a rescan with the requester's verified identifiers no longer finds the record.
 
-The platform doesn't check a connector's `supported_actions` before dispatch. A connector that refuses the action with a 4xx makes the task `FAILED_FINAL` with code `http_<status>`. The mock CRM supports every action. The mock document store supports only `DELETE` and `RESTRICT`.
+Before each action, fulfilment reads the connector's descriptor (`test_connection`). If the action isn't in its `supported_actions`, nothing is sent: the task becomes `FAILED_FINAL` with code `action_unsupported`. The check happens at fulfilment, after approval, not when the decision is made. The mock CRM supports every action. The mock document store supports only `DELETE` and `RESTRICT`.
 
 ## Related
 

@@ -204,6 +204,9 @@ def test_worker_crash_mid_dispatch_resumes_without_duplication(
         def __init__(self, inner: Any) -> None:
             self.inner = inner
 
+        def test_connection(self) -> Any:
+            return self.inner.test_connection()
+
         def execute_action(self, req: Any) -> Any:
             self.inner.execute_action(req)
             raise SystemExit("worker killed")  # not a ConnectorError: nothing is recorded
@@ -321,3 +324,29 @@ def test_connector_executions_are_append_only(
     with pytest.raises(DBAPIError, match="append-only"):
         with migrator_engine.begin() as conn:
             conn.execute(text("UPDATE connector_execution SET outcome = 'FAILED_FINAL'"))
+
+
+def test_an_action_the_connector_does_not_support_is_never_sent(
+    client: TestClient,
+    approved,
+    connector_factory,
+    mock_connectors: TestClient,
+    migrator_engine: Engine,
+) -> None:
+    # Regression: fulfilment sent ANONYMIZE to the document store, which only supports
+    # DELETE and RESTRICT; the failure surfaced only after approval, as http_422.
+    # Found by /engineering:testing-strategy on 2026-10-02.
+    tenant, rid = approved["tenant"], approved["rid"]
+    task = tasks(migrator_engine, rid)["docs:file:d-3001"]
+    with migrator_engine.begin() as conn:
+        conn.execute(
+            text("UPDATE fulfilment_task SET action = 'ANONYMIZE' WHERE id = :t"),
+            {"t": task["id"]},
+        )
+    result = dispatch(client, tenant, task["id"], connector_factory)
+    assert (result.status, result.retryable) == ("FAILED_FINAL", False)
+    task = tasks(migrator_engine, rid)["docs:file:d-3001"]
+    assert task["last_error_code"] == "action_unsupported"
+    assert not effects(mock_connectors, "docs:file:d-3001")  # nothing reached the system
+    calls = mock_connectors.get("/__test__/calls").json()
+    assert not [c for c in calls if c["system"] == "docs" and c["op"] == "execute_action"]

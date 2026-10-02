@@ -101,8 +101,12 @@ def run_discovery(self: object, tenant_id: str, request_id: str) -> None:
         retryable |= outcome.status == "FAILED" and outcome.retryable
     if retryable:
         with tenant_session(svc.engine, TenantContext(tid)) as session:
-            discovery.retry_failed(session, request_id=rid)
-        raise RetryableConnectorFailure(request_id)
+            reset = discovery.retry_failed(
+                session, request_id=rid, max_attempts=svc.settings.discovery_max_attempts
+            )
+        if reset:
+            raise RetryableConnectorFailure(request_id)
+        # Attempts used up: the job stays FAILED with its error for staff to see and retry.
     with tenant_session(svc.engine, TenantContext(tid)) as session:
         # Same transaction: a case can't be left between discovery and its next step.
         done = discovery.after_discovery(session, request_id=rid, registry=svc.registry)

@@ -162,6 +162,14 @@ def dispatch(
 
     started = _now()
     try:
+        # Never send a destructive action the connector doesn't declare: fail it for
+        # staff here instead of relying on the customer system to refuse it.
+        if action not in connector.test_connection().descriptor.supported_actions:
+            raise ConnectorError(
+                f"connector does not support {action.value}",
+                retryable=False,
+                code="action_unsupported",
+            )
         result = connector.execute_action(
             ActionRequest(idempotency_key=key, action=action, source_record_ref=ref)
         )

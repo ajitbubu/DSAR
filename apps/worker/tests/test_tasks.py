@@ -36,7 +36,7 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> Calls:
         keys="keys",
         cipher="cipher",
         blob_store="store",
-        settings=SimpleNamespace(fulfilment_max_attempts=3),
+        settings=SimpleNamespace(fulfilment_max_attempts=3, discovery_max_attempts=4),
     )
     monkeypatch.setattr(tasks, "services", lambda: svc)
 
@@ -54,8 +54,15 @@ def outcome(**kw: Any) -> SimpleNamespace:
     return SimpleNamespace(**{**base, **kw})
 
 
-def fake_discovery(monkeypatch: pytest.MonkeyPatch, c: Calls, outcomes: list[Any]) -> None:
+def fake_discovery(
+    monkeypatch: pytest.MonkeyPatch, c: Calls, outcomes: list[Any], reset: int = 1
+) -> None:
     jobs = [uuid.uuid4() for _ in outcomes]
+
+    def retry_failed(s: object, request_id: uuid.UUID, max_attempts: int | None = None) -> int:
+        c.log.append(("retry_failed", max_attempts))
+        return reset
+
     by_job = dict(zip(jobs, outcomes, strict=True))
     monkeypatch.setattr(
         tasks,
@@ -63,7 +70,7 @@ def fake_discovery(monkeypatch: pytest.MonkeyPatch, c: Calls, outcomes: list[Any
         SimpleNamespace(
             start=lambda s, request_id, registry: c.log.append(("start", request_id)) or jobs,
             run_job=lambda engine, tenant_id, job_id, **kw: by_job[job_id],
-            retry_failed=lambda s, request_id: c.log.append(("retry_failed", request_id)),
+            retry_failed=retry_failed,
             after_discovery=lambda s, request_id, registry: (
                 c.log.append(("after", request_id)) or True
             ),
@@ -94,6 +101,23 @@ def test_a_permanent_failure_is_not_retried(calls: Calls, monkeypatch: pytest.Mo
     fake_discovery(monkeypatch, calls, [outcome(status="FAILED", retryable=False)])
     tasks.run_discovery.run(TID, RID)  # no exception: Celery must not retry
     assert "retry_failed" not in calls.names() and "after" in calls.names()
+
+
+def test_automatic_retry_passes_the_attempt_cap(
+    calls: Calls, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_discovery(monkeypatch, calls, [outcome(status="FAILED", retryable=True)])
+    with pytest.raises(tasks.RetryableConnectorFailure):
+        tasks.run_discovery.run(TID, RID)
+    assert ("retry_failed", 4) in calls.log
+
+
+def test_when_attempts_are_used_up_celery_stops_and_the_case_is_left_for_staff(
+    calls: Calls, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_discovery(monkeypatch, calls, [outcome(status="FAILED", retryable=True)], reset=0)
+    tasks.run_discovery.run(TID, RID)  # no exception: nothing left to retry automatically
+    assert calls.names()[-1] == "after"  # same path as a permanent failure
 
 
 def test_discovery_retries_are_bounded() -> None:
@@ -267,3 +291,10 @@ def test_respond_and_close_builds_the_notifier_once(
 
 def test_noop_task_runs() -> None:
     tasks.noop.run(TID, request_id=RID)
+
+
+def test_the_attempt_cap_ends_discovery_retries_before_celery_does() -> None:
+    from idprivacy.config import Settings
+
+    default_cap = Settings.model_fields["discovery_max_attempts"].default
+    assert default_cap <= tasks.run_discovery.max_retries

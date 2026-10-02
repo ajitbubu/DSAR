@@ -81,6 +81,9 @@ class Settings(BaseSettings):
 
     # Fulfilment (M6): attempts per destructive task before it fails permanently.
     fulfilment_max_attempts: int = 5
+    # Discovery: automatic attempts per source before the job is left FAILED for staff.
+    # Keep below the worker's Celery max_retries (6) so the cap, not Celery, ends retries.
+    discovery_max_attempts: int = Field(default=5, ge=1)
     # Access report availability (decision D-25; these are the defaults until decided).
     access_report_ttl_days: int = 14
     access_report_max_downloads: int = 5
