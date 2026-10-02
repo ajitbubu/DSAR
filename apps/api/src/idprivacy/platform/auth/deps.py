@@ -20,6 +20,7 @@ from idprivacy.platform.auth.dp_session import DataPrincipalPrincipal
 from idprivacy.platform.auth.oidc import InvalidTokenError, OidcVerifier
 from idprivacy.platform.auth.rbac import Permission, RoleCode, StaffPrincipal
 from idprivacy.platform.db import TenantContext, tenant_session
+from idprivacy.platform.ratelimit import RateLimitExceeded
 
 _UNAUTHENTICATED = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -42,6 +43,16 @@ def get_principal(request: Request) -> StaffPrincipal:
         claims = _verifier(request).verify(token)
     except InvalidTokenError:
         raise _UNAUTHENTICATED from None
+    try:  # before any DB work, so a flood never reaches the connection pool
+        request.app.state.rate_limiter.hit(
+            request.app.state.staff_limit, f"{claims['iss']}|{claims['sub']}"
+        )
+    except RateLimitExceeded as exc:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Too Many Requests",
+            headers={"Retry-After": str(exc.retry_after)},
+        ) from None
 
     with request.app.state.app_engine.connect() as conn:
         row = conn.execute(

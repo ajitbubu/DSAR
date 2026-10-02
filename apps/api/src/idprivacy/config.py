@@ -78,6 +78,8 @@ class Settings(BaseSettings):
     rate_limit_resend_per_ip: str = "10/600"
     rate_limit_sign_in_per_ip: str = "10/600"
     rate_limit_sign_in_per_contact: str = "5/3600"
+    # Every staff request, per user: bounds what one account (or a stolen token) can consume.
+    rate_limit_staff_per_user: str = "600/60"
 
     # Fulfilment (M6): attempts per destructive task before it fails permanently.
     fulfilment_max_attempts: int = 5
@@ -122,6 +124,7 @@ class Settings(BaseSettings):
             "rate_limit_resend_per_ip",
             "rate_limit_sign_in_per_ip",
             "rate_limit_sign_in_per_contact",
+            "rate_limit_staff_per_user",
         ):
             hits, _, window = getattr(self, name).partition("/")
             if not (

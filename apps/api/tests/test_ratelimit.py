@@ -53,3 +53,35 @@ def test_redis_keys_do_not_contain_subject() -> None:
     client = redis.Redis.from_url(REDIS_URL)
     keys = [k.decode() for k in client.scan_iter(f"rl:{scope}:*")]
     assert len(keys) == 1 and "priya" not in keys[0]
+
+
+def test_each_staff_user_is_rate_limited_on_their_own(
+    migrated_db: None,
+    rsa_key,
+    make_tenant,
+    provision_user,
+    make_token,  # type: ignore[no-untyped-def]
+) -> None:
+    # Regression: one authenticated staff user could flood read endpoints and take the
+    # whole API's capacity from every tenant (CSO finding 27c0d030f50e).
+    from fastapi.testclient import TestClient
+
+    from idprivacy.main import create_app
+    from idprivacy.platform.storage import MemoryBlobStore
+    from tests.conftest import bearer, make_settings
+
+    app = create_app(
+        make_settings(rate_limit_staff_per_user="3/60"),
+        key_resolver=lambda _token: rsa_key.public_key(),
+        readiness_probes={},
+        blob_store=MemoryBlobStore(),
+    )
+    tenant = make_tenant()
+    _, flooder = provision_user(tenant, ["AUDITOR"])
+    _, colleague = provision_user(tenant, ["AUDITOR"])
+    with TestClient(app) as c:
+        codes = [c.get("/v1/me", headers=bearer(make_token(flooder))).status_code for _ in range(4)]
+        assert codes == [200, 200, 200, 429]
+        limited = c.get("/v1/me", headers=bearer(make_token(flooder)))
+        assert 1 <= int(limited.headers["retry-after"]) <= 60
+        assert c.get("/v1/me", headers=bearer(make_token(colleague))).status_code == 200

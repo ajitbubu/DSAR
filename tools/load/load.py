@@ -7,6 +7,9 @@ back to back. Prints one JSON line per stage: throughput, latency percentiles, c
 
 Scenarios: api_readyz, web_intake_page, staff_case_list, staff_case_detail,
 public_submit (creates real cases: reset with `make clean && make up`).
+
+The staff scenarios use one account, so after rate_limit_staff_per_user (default 600
+requests a minute) they get 429 by design: that is the per-user limit working, not a fault.
 """
 
 import asyncio

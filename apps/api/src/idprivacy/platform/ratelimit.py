@@ -1,4 +1,4 @@
-"""Fixed-window rate limiting for public endpoints (threat model T-02, T-17).
+"""Fixed-window rate limiting: public endpoints (threat model T-02, T-17) and staff users.
 
 Keys never contain personal data: subjects (client IP, contact blind index) are hashed.
 """
@@ -105,3 +105,8 @@ def public_limits(settings: "Settings") -> PublicLimits:
         sign_in_per_ip=_parse("sign_in:ip", settings.rate_limit_sign_in_per_ip),
         sign_in_per_contact=_parse("sign_in:contact", settings.rate_limit_sign_in_per_contact),
     )
+
+
+def staff_limit(settings: "Settings") -> Limit:
+    """Per staff user (token issuer + subject): one account can't take the API's capacity."""
+    return _parse("staff:user", settings.rate_limit_staff_per_user)

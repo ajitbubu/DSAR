@@ -39,6 +39,7 @@ from idprivacy.platform.ratelimit import (
     RateLimiter,
     RedisRateLimiter,
     public_limits,
+    staff_limit,
 )
 from idprivacy.platform.storage import BlobStore
 from idprivacy.runtime import build_services
@@ -113,6 +114,7 @@ def create_app(
     app.state.otp_provider = build_otp_provider(settings)
     app.state.rate_limiter = _rate_limiter(settings)
     app.state.limits = public_limits(settings)
+    app.state.staff_limit = staff_limit(settings)
     app.state.readiness_probes = (
         readiness_probes if readiness_probes is not None else _probes(settings, engine)
     )
