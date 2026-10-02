@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 TEST_DB_ENV := IDP_REQUIRE_DB=1
 
-.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e test-connectors lint fmt typecheck contracts smoke policy-pin policy-schema logscan security purge-reports minimise-closed vault-provision coverage
+.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e test-connectors lint fmt typecheck contracts smoke policy-pin policy-schema logscan security purge-reports minimise-closed vault-provision coverage load-test
 
 help:  ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -91,6 +91,14 @@ security:  ## Dependency audits (pip-audit, pnpm audit) and secret scan (gitleak
 
 logscan:  ## Fail if seeded identifiers, tokens or passwords appear in any service log
 	./infra/compose/logscan.sh
+
+# Load test the running stack (`make up` first). Overrides: SCENARIO, STAGES, DURATION.
+SCENARIO ?= staff_case_list
+STAGES ?= 10,25,50,100
+DURATION ?= 15
+
+load-test:  ## Load test the running stack: make load-test SCENARIO=staff_case_detail STAGES=10,50
+	STAGES=$(STAGES) DURATION=$(DURATION) uv run python tools/load/load.py $(SCENARIO)
 
 smoke:  ## End-to-end check against the running stack (Keycloak token -> API)
 	./infra/compose/smoke.sh

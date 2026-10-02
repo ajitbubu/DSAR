@@ -9,7 +9,7 @@
   --accent-soft: #e6f0f7;
   --danger: #b42318;
   --danger-soft: #fdecea;
-  --success: #1a7f4b;
+  --success: #166b3f;  /* 5.8:1 on --success-soft (WCAG AA for small text) */
   --success-soft: #e7f5ee;
   --focus: #2e7dc0;
   --radius: 10px;
