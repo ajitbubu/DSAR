@@ -149,6 +149,8 @@ def resend_otp(request: Request, challenge_id: UUID, ip: ClientIp) -> OtpResent:
             raise _NOT_FOUND
         req = db.get(PrivacyRequest, challenge.request_id)
         assert req is not None
+        if req.minimised_at is not None:  # contact details shredded (D-12)
+            raise _NOT_FOUND
         channel, destination = intake.contact_for_request(state.cipher, req)
         outcome, expires_at = verification.resend(
             db,
@@ -275,7 +277,11 @@ def request_sign_in(request: Request, payload: SignInCreate, ip: ClientIp) -> Si
         req = db.execute(
             select(PrivacyRequest).where(PrivacyRequest.display_id == payload.reference)
         ).scalar_one_or_none()
-        if req is not None and CaseStatus(req.status) not in _NOT_YET_VERIFIED:
+        if (
+            req is not None
+            and CaseStatus(req.status) not in _NOT_YET_VERIFIED
+            and req.minimised_at is None  # contact details shredded (D-12): no match
+        ):
             channel, destination = intake.contact_for_request(state.cipher, req)
             stored = intake.contact_bidx(
                 state.keys, tenant_id, Contact(channel=channel, value=destination)

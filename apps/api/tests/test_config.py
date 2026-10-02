@@ -35,3 +35,20 @@ def test_symmetric_or_empty_jwt_algorithms_rejected(algs: list[str]) -> None:
 def test_master_key_required_for_local_key_provider() -> None:
     with pytest.raises(ValidationError, match="local_master_key"):
         make_settings(local_master_key=None)
+
+
+def test_vault_key_provider_needs_address_and_token() -> None:
+    with pytest.raises(ValidationError, match="vault_addr and vault_token"):
+        make_settings(key_provider="vault")
+
+
+def test_vault_key_provider_needs_https_outside_dev() -> None:
+    with pytest.raises(ValidationError, match="must use https"):
+        make_settings(
+            env="production", key_provider="vault", vault_addr="http://vault:8200", vault_token="t"
+        )
+
+
+def test_vault_key_provider_accepted_in_dev() -> None:
+    s = make_settings(key_provider="vault", vault_addr="http://vault:8200", vault_token="t")
+    assert s.key_provider == "vault"

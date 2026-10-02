@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 TEST_DB_ENV := IDP_REQUIRE_DB=1
 
-.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e test-connectors lint fmt typecheck contracts smoke policy-pin policy-schema logscan security purge-reports
+.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e test-connectors lint fmt typecheck contracts smoke policy-pin policy-schema logscan security purge-reports minimise-closed vault-provision
 
 help:  ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -54,6 +54,12 @@ fmt:  ## Format Python
 
 purge-reports:  ## Delete expired or used-up access reports (D-25); run daily
 	$(COMPOSE) run --rm --no-deps migrate python -m idprivacy.scripts.purge_reports
+
+minimise-closed:  ## Shred requester identifiers of cases closed past their grace period (D-12); run daily
+	$(COMPOSE) run --rm --no-deps migrate python -m idprivacy.scripts.minimise_closed
+
+vault-provision:  ## Create each tenant's Vault Transit keys (D-3); run after adding a tenant
+	$(COMPOSE) run --rm --no-deps migrate python -m idprivacy.scripts.vault_provision
 
 policy-pin:  ## Pin a pack's hash in the manifest: make policy-pin PACK=packages/policy-packs/dpdp/1.0.0/pack.yaml
 	uv run python -m idprivacy.scripts.policy_packs pin $(PACK)

@@ -180,7 +180,7 @@ def get_disclosure(
     export = disclosure.latest_export(db, case.id)
     records: list[RecordView] = []
     missing: list[UUID] = []
-    if export is not None and export.status == "READY":
+    if export is not None and export.status == "READY" and export.purged_at is None:
         content = disclosure.load_content(export, cipher=svc.cipher, store=svc.blob_store)
         excluded = disclosure.current_exclusions(db, export.id)
         for r in content["records"]:

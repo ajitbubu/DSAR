@@ -495,6 +495,13 @@
       "title": "Legal Review",
       "type": "string"
     },
+    "post_closure_retention_days": {
+      "default": 30,
+      "maximum": 3650,
+      "minimum": 0,
+      "title": "Post Closure Retention Days",
+      "type": "integer"
+    },
     "retention_rules": {
       "items": {
         "$ref": "#/$defs/RetentionRule"

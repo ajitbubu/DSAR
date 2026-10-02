@@ -37,8 +37,12 @@ class Settings(BaseSettings):
     notification_provider: Literal["mock"] = "mock"
     # Connector credentials are resolved by reference (open decision D-5).
     connector_credential_source: Literal["env"] = "env"
-    key_provider: Literal["local"] = "local"
+    # Key custody (D-3): Vault Transit in production, a derived local key in dev/test.
+    key_provider: Literal["local", "vault"] = "local"
     local_master_key: SecretStr | None = None
+    vault_addr: str | None = None
+    vault_token: SecretStr | None = None
+    vault_transit_mount: str = "transit"
 
     # Evidence object storage (ADR-0007).
     s3_endpoint_url: str | None = None
@@ -93,6 +97,11 @@ class Settings(BaseSettings):
             errors.append("in-memory rate limiter is only permitted in local/test")
         if self.key_provider == "local" and self.local_master_key is None:
             errors.append("local_master_key is required for the local key provider")
+        if self.key_provider == "vault":
+            if not self.vault_addr or self.vault_token is None:
+                errors.append("vault_addr and vault_token are required for the vault key provider")
+            elif self.env not in DEV_ENVIRONMENTS and not self.vault_addr.startswith("https://"):
+                errors.append("vault_addr must use https outside local/test")
         for name in (
             "rate_limit_submit_per_ip",
             "rate_limit_submit_per_contact",

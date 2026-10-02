@@ -153,10 +153,12 @@ class DataPrincipal(Base):
     __table_args__ = (UniqueConstraint("tenant_id", "id", name="uq_data_principal_tenant_id_id"),)
     id: Mapped[uuid.UUID] = _uuid_pk()
     tenant_id: Mapped[uuid.UUID] = _tenant_fk()
-    enc_identifiers: Mapped[str] = mapped_column(Text, nullable=False)
+    # NULL once minimised (D-12): the ciphertext and blind indexes are shredded.
+    enc_identifiers: Mapped[str | None] = mapped_column(Text)
     bidx_email: Mapped[str | None] = mapped_column(String(64))
     bidx_phone: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = _created_at()
+    minimised_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class PrivacyRequest(Base):
@@ -177,12 +179,14 @@ class PrivacyRequest(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     channel: Mapped[str] = mapped_column(String(16), nullable=False, default="WEB")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    enc_full_name: Mapped[str] = mapped_column(Text, nullable=False)
-    enc_submitted_identifiers: Mapped[str] = mapped_column(Text, nullable=False)
+    # NULL once minimised (D-12).
+    enc_full_name: Mapped[str | None] = mapped_column(Text)
+    enc_submitted_identifiers: Mapped[str | None] = mapped_column(Text)
     residency_claim: Mapped[str] = mapped_column(String(16), nullable=False)
     submitted_at: Mapped[datetime] = _created_at()
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    minimised_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Pinned at jurisdiction time (M2); never changes for the life of the case.
     policy_pack_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("policy_pack.id")
@@ -666,6 +670,8 @@ class DisclosureExport(Base):
     requested_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()
+    # Set when the case is minimised (D-12): the blob is deleted, object_key stays as a record.
+    purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class DisclosureExclusion(Base):

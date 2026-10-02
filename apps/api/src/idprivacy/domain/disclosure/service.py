@@ -272,6 +272,7 @@ def load_content(
 ) -> dict[str, Any]:
     """Decrypt a READY export. Callers must be authorised and must audit the read."""
     assert export.status == "READY" and export.object_key and export.content_sha256
+    assert export.purged_at is None
     token = b"".join(store.stream(export.object_key)).decode()
     body = cipher.decrypt(export.tenant_id, _context(export.id), token).encode()
     if hashlib.sha256(body).hexdigest() != export.content_sha256:

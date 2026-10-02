@@ -100,6 +100,19 @@ def test_rules_are_first_match_wins() -> None:
     assert (out.decision, out.exception_code) == ("MANUAL_REVIEW", "LINK_UNCONFIRMED")
 
 
+def test_v1_2_anonymises_support_history_and_sets_the_grace_period() -> None:
+    pack = parse(read_yaml(DPDP_FILE.parents[1] / "1.2.0" / "pack.yaml"))
+    ticket = MatchFacts("crm.ticket", frozenset({"contact", "support"}), "VERIFIED", None)
+    out = evaluate(pack, ticket)
+    assert (out.decision, out.rule_id) == ("ANONYMIZE", "support-history-anonymise")
+    held = MatchFacts("crm.ticket", frozenset({"support"}), "VERIFIED", uuid.uuid4())
+    assert evaluate(pack, held).decision == "RETAIN"  # a hold still wins
+    contact = MatchFacts("crm.contact", frozenset({"contact"}), "VERIFIED", None)
+    assert evaluate(pack, contact).decision == "DELETE"
+    assert pack.post_closure_retention_days == 30
+    assert _pack().post_closure_retention_days == 30  # older packs get the default
+
+
 def test_no_matching_rule_fails_safe_to_manual_review() -> None:
     content = read_yaml(DPDP_FILE)
     content["retention_rules"] = [

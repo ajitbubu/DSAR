@@ -120,6 +120,7 @@ def resolve(
     session: Session, *, request: PrivacyRequest, keys: KeyProvider, cipher: FieldCipher
 ) -> list[CanonicalIdentifier]:
     """Persist the canonical set for a verified request. Idempotent per request."""
+    assert request.enc_submitted_identifiers is not None, "request was minimised"
     submitted = json.loads(
         cipher.decrypt(request.tenant_id, intake.CTX_SUBMITTED, request.enc_submitted_identifiers)
     )

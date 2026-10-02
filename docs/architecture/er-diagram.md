@@ -68,9 +68,10 @@ erDiagram
   DATA_PRINCIPAL {
     uuid id PK
     uuid tenant_id FK
-    string enc_identifiers "canonical identifier set (JSON, encrypted)"
+    string enc_identifiers "canonical identifier set (JSON, encrypted); NULL once minimised"
     string bidx_email
     string bidx_phone
+    timestamptz minimised_at "D-12"
   }
   PRIVACY_REQUEST {
     uuid id PK
@@ -83,6 +84,7 @@ erDiagram
     timestamptz submitted_at
     timestamptz due_at
     timestamptz closed_at
+    timestamptz minimised_at "D-12: enc_* shredded after the pack's grace period"
   }
   REQUEST_RIGHT {
     uuid id PK

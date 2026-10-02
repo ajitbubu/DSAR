@@ -151,6 +151,11 @@ class Workflow(_Strict):
         return next((t for t in self.transitions if t.event == event and current in t.from_), None)
 
 
+# How long a closed case keeps the requester's identifiers before they are shredded
+# (decision D-12). Applies to packs that don't set it and to cases without a pack.
+DEFAULT_POST_CLOSURE_RETENTION_DAYS = 30
+
+
 class PolicyPack(_Strict):
     code: Code
     version: SemVer
@@ -163,6 +168,9 @@ class PolicyPack(_Strict):
     exception_codes: Annotated[list[ExceptionCode], Field(min_length=1)]
     retention_rules: Annotated[list[RetentionRule], Field(min_length=1)]
     workflows: dict[Slug, Workflow]
+    post_closure_retention_days: Annotated[int, Field(ge=0, le=3650)] = (
+        DEFAULT_POST_CLOSURE_RETENTION_DAYS
+    )
 
     @model_validator(mode="after")
     def _cross_references(self) -> Self:

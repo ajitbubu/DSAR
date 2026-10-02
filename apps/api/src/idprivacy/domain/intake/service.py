@@ -175,6 +175,7 @@ def submit(
 
 def contact_for_request(cipher: FieldCipher, request: PrivacyRequest) -> tuple[str, str]:
     """Return ``(channel, destination)`` for resending an OTP."""
+    assert request.enc_submitted_identifiers is not None, "request was minimised"
     data = json.loads(
         cipher.decrypt(request.tenant_id, CTX_SUBMITTED, request.enc_submitted_identifiers)
     )
