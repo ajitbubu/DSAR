@@ -123,7 +123,8 @@ def _minimise(session: Session, request: PrivacyRequest, store: BlobStore, now: 
         object_type="privacy_request",
         object_id=request.id,
         details={
-            "identifiers_deleted": identifiers,
+            # Not "identifiers_*": audit redaction blanks any key naming identifiers.
+            "resolved_ids_deleted": identifiers,
             "blobs_deleted": blobs,
             "principal_shredded": principal_shredded,
         },

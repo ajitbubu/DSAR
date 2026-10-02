@@ -93,6 +93,10 @@ def test_identifiers_and_blobs_are_shredded_after_the_grace_period(
     )[0]
     assert details["principal_shredded"] is True
     assert "priya" not in str(details).lower()
+    # Regression: ISSUE-003 — audit redaction blanked the deleted-identifier count
+    # Found by /qa on 2026-10-02
+    # Report: .gstack/qa-reports/run-20261002T184419Z/qa-report-dsar-2026-10-02.md
+    assert "[REDACTED]" not in details.values()
 
 
 def test_a_minimised_case_behaves_like_no_match(
