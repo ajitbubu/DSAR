@@ -51,16 +51,18 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy apps/api/src apps/worker/src packages/mock-connectors/src packages/connector-sdk/src
-      - name: API tests
+      # Coverage floors match the Makefile `coverage` target; raise both together.
+      - name: API tests (coverage floor 90%)
         working-directory: apps/api
-        run: uv run pytest -q
-      - name: Worker tests
+        run: uv run pytest -q --cov=idprivacy --cov-report=term-missing:skip-covered --cov-fail-under=90
+      - name: Worker tests (coverage floor 45%)
         working-directory: apps/worker
-        run: uv run pytest -q
-      - name: Connector SDK and mock-connector conformance
-        run: |
-          uv run pytest -q packages/connector-sdk/tests
-          uv run pytest -q packages/mock-connectors/tests
+        run: uv run pytest -q --cov=idprivacy_worker --cov-report=term-missing:skip-covered --cov-fail-under=45
+      - name: Connector SDK and mock-connector conformance (coverage floor 90%)
+        run: >-
+          uv run pytest -q packages/connector-sdk/tests packages/mock-connectors/tests
+          --cov=idprivacy_connector_sdk --cov=mock_connectors
+          --cov-report=term-missing:skip-covered --cov-fail-under=90
 
   web:
     runs-on: ubuntu-latest
@@ -74,7 +76,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint:web
-      - run: pnpm test:web
+      - run: pnpm coverage:web  # unit tests + coverage floor (apps/web/vitest.config.ts)
       - run: pnpm build:web
 
   security:

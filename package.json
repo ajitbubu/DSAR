@@ -7,6 +7,7 @@
   },
   "scripts": {
     "test:web": "pnpm --filter @idprivacy/web test",
+    "coverage:web": "pnpm --filter @idprivacy/web test:coverage",
     "lint:web": "pnpm --filter @idprivacy/web lint",
     "build:web": "pnpm --filter @idprivacy/web build",
     "test:e2e": "pnpm --filter @idprivacy/web exec playwright test"

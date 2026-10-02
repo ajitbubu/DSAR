@@ -15,3 +15,5 @@ test-results/
 next-env.d.ts
 playwright/.cache
 .requirements.audit.txt
+.coverage
+.coverage.*

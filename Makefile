@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f infra/compose/docker-compose.yml
 TEST_DB_ENV := IDP_REQUIRE_DB=1
 
-.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e test-connectors lint fmt typecheck contracts smoke policy-pin policy-schema logscan security purge-reports minimise-closed vault-provision
+.PHONY: help up up-deps down clean logs ps migrate seed test test-api test-worker test-web test-e2e test-connectors lint fmt typecheck contracts smoke policy-pin policy-schema logscan security purge-reports minimise-closed vault-provision coverage
 
 help:  ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -41,6 +41,18 @@ test-web:  ## Web unit tests
 
 test-e2e:  ## Playwright against the running stack (`make up` first)
 	pnpm test:e2e
+
+# Coverage floors (fail below): stop regressions; raise them as tests are added.
+COV_API := 90
+COV_WORKER := 45
+COV_CONNECTORS := 90
+COV_FLAGS := --cov-report=term-missing:skip-covered
+
+coverage: up-deps  ## Tests with coverage; fails below each suite's floor
+	cd apps/api && $(TEST_DB_ENV) uv run pytest -q --cov=idprivacy $(COV_FLAGS) --cov-fail-under=$(COV_API)
+	cd apps/worker && uv run pytest -q --cov=idprivacy_worker $(COV_FLAGS) --cov-fail-under=$(COV_WORKER)
+	uv run pytest -q packages/connector-sdk/tests packages/mock-connectors/tests --cov=idprivacy_connector_sdk --cov=mock_connectors $(COV_FLAGS) --cov-fail-under=$(COV_CONNECTORS)
+	pnpm coverage:web
 
 lint:  ## Lint and type-check everything
 	uv run ruff check .
