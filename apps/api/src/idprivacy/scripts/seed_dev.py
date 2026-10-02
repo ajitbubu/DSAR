@@ -75,7 +75,7 @@ USERS = {
 ROLE_CODES = ("TENANT_ADMIN", "PRIVACY_ANALYST", "APPROVER", "AUDITOR")
 # Both dev tenants process data in India and enable the DPDP pack.
 DEV_REGION = "IN"
-DEV_PACKS = [("DPDP", "1.1.0")]  # new cases use the latest; old ones stay pinned
+DEV_PACKS = [("DPDP", "1.2.0")]  # new cases use the latest; old ones stay pinned
 MOCK_BASE = os.environ.get("IDP_MOCK_CONNECTORS_URL", "http://mock-connectors:8100")
 DEV_CONNECTORS = [("mock-crm", "CRM (mock)", "crm"), ("mock-docs", "Document store (mock)", "docs")]
 # Illustrative processing-register entries (decision D-27), so access cases can be submitted.
