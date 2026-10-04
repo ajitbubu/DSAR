@@ -20,7 +20,7 @@ Environment variables use the `IDP_` prefix (`apps/api/src/idprivacy/config.py`)
 | `IDP_VAULT_TOKEN` | secret string | none | Required when `IDP_KEY_PROVIDER=vault`. Sent as `X-Vault-Token`. |
 | `IDP_VAULT_TRANSIT_MOUNT` | string | `transit` | Path where the Transit engine is mounted. |
 
-> **Compose gap:** `infra/compose/docker-compose.yml` passes only the variables in its `x-python-env` block. `IDP_KEY_PROVIDER` and `IDP_VAULT_*` aren't in that block, so setting them in your shell or `.env` has no effect on the stack. Pass them with `docker compose run -e`, as shown in [How to set up Vault Transit key custody](../how-to/set-up-vault-key-custody.md).
+> **Local stack:** Compose passes these variables from your shell (or `infra/compose/.env`) to every Python service, defaulting to the local provider. `make vault-up` starts an optional dev Vault with Transit enabled. See [How to set up Vault Transit key custody](../how-to/set-up-vault-key-custody.md#try-it-locally).
 
 ## Policy-pack field
 
@@ -43,6 +43,7 @@ Retention rules choose `ANONYMIZE` like any other decision (`DELETE`, `RETAIN`, 
 | Command | Runs | When | Output | Exit |
 |---|---|---|---|---|
 | `make minimise-closed` | `python -m idprivacy.scripts.minimise_closed` in the `migrate` image | Daily | `minimised N case(s); M held back by a legal hold` | 0 |
+| `make vault-up` | starts the optional dev Vault (`vault` profile) and enables Transit | Before trying Vault locally | Vault healthy, Transit enabled | 0 |
 | `make vault-provision` | `python -m idprivacy.scripts.vault_provision` in the `migrate` image | After adding a tenant | `provisioned keys for N tenant(s)` | 0; exits with `IDP_KEY_PROVIDER is not 'vault'; nothing to provision` when the provider is `local` |
 | `make purge-reports` | `python -m idprivacy.scripts.purge_reports` | Daily | deletes expired or used-up access reports (D-25) | 0 |
 
