@@ -10,6 +10,10 @@ public_submit (creates real cases: reset with `make clean && make up`).
 
 The staff scenarios use one account, so after rate_limit_staff_per_user (default 600
 requests a minute) they get 429 by design: that is the per-user limit working, not a fault.
+To measure raw capacity, start the stack with IDP_RATE_LIMIT_STAFF_PER_USER raised.
+
+Optional gate (CI): MAX_ERROR_PCT and/or MAX_P95_MS make the run exit 1 if any stage
+exceeds them, e.g. MAX_ERROR_PCT=0 MAX_P95_MS=2000.
 """
 
 import asyncio
@@ -124,12 +128,27 @@ async def stage(fire, users: int) -> dict:
     }
 
 
-async def main(name: str) -> None:
+def breaches(res: dict) -> list[str]:
+    """Gate checks from MAX_ERROR_PCT / MAX_P95_MS; empty when no gate is set or it passes."""
+    out = []
+    if (limit := os.environ.get("MAX_ERROR_PCT")) and res["error_pct"] > float(limit):
+        out.append(f"{res['users']} users: error {res['error_pct']}% > {limit}% {res['codes']}")
+    if (limit := os.environ.get("MAX_P95_MS")) and res["p95"] > float(limit):
+        out.append(f"{res['users']} users: p95 {res['p95']} ms > {limit} ms")
+    return out
+
+
+async def main(name: str) -> int:
     fire = scenario(name)
+    failed: list[str] = []
     for users in STAGES:
         res = await stage(fire, users)
         print(json.dumps({"scenario": name, **res}), flush=True)
+        failed += breaches(res)
+    for line in failed:
+        print(f"GATE FAIL {name}: {line}", file=sys.stderr)
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
-    asyncio.run(main(sys.argv[1]))
+    sys.exit(asyncio.run(main(sys.argv[1])))
