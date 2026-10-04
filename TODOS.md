@@ -8,7 +8,7 @@ Status: `todo` · `in progress` · `done (commit)` · `needs decision`
 
 | # | Item | Status | Notes |
 |---|---|---|---|
-| 1 | Record CSO finding `27c0d030f50e` (staff-API deadlock / capacity DoS) as closed | todo | Fixed in `78e4ed1` (admission limit) and `5b06943` (per-user staff rate limit). The recheck must cite the original boundary, `apps/api/src/idprivacy/platform/auth/deps.py:80` |
+| 1 | Record CSO finding `27c0d030f50e` (staff-API deadlock / capacity DoS) as closed | blocked (tooling) | **Fix done and verified:** `78e4ed1` (admission limit) and `5b06943` (per-user staff rate limit). `test_concurrency.py` and `test_ratelimit.py` failed before and pass after; the load test showed 0 errors at 200 concurrent users. **Closure record:** recheck run `1791153911224-5f4a66a18e4f5ce7` accepted fresh evidence at the original boundary (`deps.py:80`), but the CSO helper only records closure from a *complete* recheck (all 14 domains assessed). Close it during the next full `/cso` run (budget it with `--budget`) |
 | 2 | Wider security audit: `/cso --infra`, `--supply-chain`, `--code` | todo | The first audit was partial. Fix any supported findings |
 | 3 | Check that a connector supports ANONYMIZE when the decision is made, not only at fulfilment | needs decision | Today an unsupported action is never sent (`action_unsupported`), but it only fails after approval. Approval-time checking needs a connector call from the API request path |
 | 4 | Completion message date uses UTC (QA ISSUE-004) | needs decision | Needs a per-tenant timezone (`tenant.data_region` exists but is unused) |
