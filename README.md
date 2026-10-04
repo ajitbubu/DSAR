@@ -41,7 +41,12 @@ make test-e2e  # Playwright against the running stack
 make lint      # ruff, mypy --strict, tsc
 make logscan   # fail if seeded identifiers/tokens appear in service logs
 make security  # pip-audit, pnpm audit, gitleaks
+make coverage  # all test suites with coverage floors (the same gates as CI)
+make load-test # load test the running stack (SCENARIO=, STAGES=, DURATION=)
+make vault-up  # optional dev Vault for trying Vault Transit key custody
 ```
+
+Open engineering work and decisions waiting on product or legal input are tracked in [`TODOS.md`](TODOS.md).
 
 Try the Data Principal flow at http://localhost:3000/r/acme (use `priya.sharma@example.in` to hit seeded mock records), then sign in to the console at http://localhost:3000/ops as `analyst@acme.example.test`. The dev password is in the Keycloak realm fixture. The stack runs the API with `IDP_ENV=test`, so the verify screen shows the mock OTP (development only).
 
