@@ -17,7 +17,7 @@ export default defineConfig({
       exclude: ["**/*.test.*"],
       reporter: ["text-summary", "json-summary"],
       // Floor, not a target: first measured value minus 2 (raise as tests are added).
-      thresholds: { lines: 20, statements: 20 },
+      thresholds: { lines: 40, statements: 40 },
     },
   },
 });
