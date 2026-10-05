@@ -157,3 +157,4 @@ A3:
 - Once approved, the worker builds an encrypted report (JSON plus readable HTML) from the approved set, and the case closes like an erasure case.
 - The requester downloads the report from their status page within its availability window and download limit (D-25), and can come back later with their reference and a new code.
 - `make purge-reports` removes expired reports.
+# DSAR
